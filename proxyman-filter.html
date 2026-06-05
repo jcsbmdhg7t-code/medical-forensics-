@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxyman Dossier Filter — Spaarne Gasthuis</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; font-size: 14px; }
+  header { background: #1a1f2e; border-bottom: 2px solid #b71c1c; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+  header span { font-size: 12px; color: #64748b; }
+  .badge { background: #b71c1c; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; padding: 14px 24px; background: #141824; border-bottom: 1px solid #1e293b; flex-wrap: wrap; }
+  .toolbar input[type=file] { display: none; }
+  .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: #b71c1c; color: #fff; }
+  .btn-secondary { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  .btn:hover { opacity: 0.85; }
+  label.btn { display: inline-block; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .filter-chip { padding: 4px 12px; border-radius: 20px; border: 1px solid #334155; background: transparent; color: #94a3b8; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .filter-chip.active { background: #1e3a5f; color: #60a5fa; border-color: #3b82f6; }
+  .filter-chip.active.tracker { background: #3b0a0a; color: #f87171; border-color: #b91c1c; }
+  .filter-chip.active.fhir { background: #0a2e1a; color: #4ade80; border-color: #16a34a; }
+  .filter-chip.active.warn { background: #2d1b00; color: #fb923c; border-color: #ea580c; }
+
+  .stats { display: flex; gap: 0; border-bottom: 1px solid #1e293b; }
+  .stat { flex: 1; padding: 12px 20px; border-right: 1px solid #1e293b; text-align: center; }
+  .stat:last-child { border-right: none; }
+  .stat .n { font-size: 24px; font-weight: 800; }
+  .stat .l { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .stat.red .n { color: #f87171; }
+  .stat.orange .n { color: #fb923c; }
+  .stat.green .n { color: #4ade80; }
+  .stat.blue .n { color: #60a5fa; }
+
+  .search-bar { padding: 10px 24px; background: #141824; border-bottom: 1px solid #1e293b; }
+  .search-bar input { width: 100%; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; color: #e2e8f0; font-size: 13px; outline: none; }
+  .search-bar input:focus { border-color: #3b82f6; }
+
+  #results { overflow-y: auto; height: calc(100vh - 260px); }
+  .row { display: grid; grid-template-columns: 100px 70px 200px 1fr 130px 110px; gap: 0; border-bottom: 1px solid #1a2233; cursor: pointer; }
+  .row:hover { background: #1a2233; }
+  .row.header { background: #1a1f2e; position: sticky; top: 0; z-index: 10; cursor: default; }
+  .row.header:hover { background: #1a1f2e; }
+  .cell { padding: 8px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-right: 1px solid #1a2233; font-size: 12px; }
+  .cell:last-child { border-right: none; }
+  .row.header .cell { color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+  .tag.TRACKER { background: #7f1d1d; color: #fca5a5; }
+  .tag.FHIR { background: #14532d; color: #86efac; }
+  .tag.TEST-ENV { background: #451a03; color: #fdba74; }
+  .tag.UI-FRAUDE { background: #1e1b4b; color: #a5b4fc; }
+  .tag.DBC { background: #3b0764; color: #d8b4fe; }
+  .tag.PRIMAIR { background: #0c4a6e; color: #7dd3fc; }
+  .tag.AUTH { background: #1c1917; color: #d6d3d1; border: 1px solid #44403c; }
+  .tag.OVERIG { background: #1e293b; color: #94a3b8; }
+
+  .method { font-weight: 700; }
+  .method.GET { color: #4ade80; }
+  .method.POST { color: #60a5fa; }
+  .method.PUT { color: #fb923c; }
+  .method.DELETE { color: #f87171; }
+  .method.PATCH { color: #c084fc; }
+
+  .status-ok { color: #4ade80; }
+  .status-err { color: #f87171; }
+  .status-redir { color: #fb923c; }
+
+  .detail-panel { display: none; background: #0a0f1a; border-top: 1px solid #1e293b; padding: 16px 24px; }
+  .detail-panel.open { display: block; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .detail-section h3 { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .detail-section pre { background: #1a1f2e; border: 1px solid #1e293b; border-radius: 6px; padding: 10px; font-size: 11px; color: #94a3b8; overflow-x: auto; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  .juridisch-box { background: #1a1f2e; border-left: 3px solid #b71c1c; padding: 10px 12px; border-radius: 0 6px 6px 0; font-size: 12px; color: #fca5a5; }
+
+  .empty { text-align: center; padding: 80px 20px; color: #334155; }
+  .empty .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty h2 { font-size: 18px; color: #475569; margin-bottom: 8px; }
+  .empty p { font-size: 13px; color: #334155; }
+
+  .drop-zone { border: 2px dashed #334155; border-radius: 12px; padding: 40px; text-align: center; margin: 24px; transition: border-color 0.2s; }
+  .drop-zone.drag-over { border-color: #3b82f6; background: #0f2040; }
+
+  @media (max-width: 768px) {
+    .row { grid-template-columns: 60px 180px 1fr 90px; }
+    .cell.hide-mobile { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🔍 Proxyman Dossier Filter</h1>
+    <span>Spaarne Gasthuis — Isabel Grothe — Rechtbank Noord-Holland mr/2552139</span>
+  </div>
+  <span class="badge">AVG · WGBO · NEN 7510</span>
+</header>
+
+<div class="toolbar">
+  <label class="btn btn-primary" for="fileInput">📂 Laad HAR / JSON</label>
+  <input type="file" id="fileInput" accept=".har,.json" multiple>
+  <button class="btn btn-secondary" onclick="exportCSV()">💾 Export CSV</button>
+  <button class="btn btn-secondary" onclick="exportJSON()">📋 Export JSON</button>
+  <button class="btn btn-secondary" onclick="clearAll()">✕ Wis</button>
+  <div class="filters">
+    <button class="filter-chip active" data-cat="ALL" onclick="setFilter('ALL',this)">Alles</button>
+    <button class="filter-chip tracker" data-cat="TRACKER" onclick="setFilter('TRACKER',this)">🚨 Trackers</button>
+    <button class="filter-chip fhir" data-cat="FHIR" onclick="setFilter('FHIR',this)">🏥 FHIR/API</button>
+    <button class="filter-chip warn" data-cat="TEST-ENV" onclick="setFilter('TEST-ENV',this)">⚠️ Test-omgeving</button>
+    <button class="filter-chip" data-cat="PRIMAIR" onclick="setFilter('PRIMAIR',this)">🎯 Primair</button>
+    <button class="filter-chip" data-cat="AUTH" onclick="setFilter('AUTH',this)">🔑 Auth</button>
+    <button class="filter-chip" data-cat="DBC" onclick="setFilter('DBC',this)">💊 DBC</button>
+    <button class="filter-chip" data-cat="UI-FRAUDE" onclick="setFilter('UI-FRAUDE',this)">🕵️ UI-fraude</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat red"><div class="n" id="s-tracker">0</div><div class="l">Trackers</div></div>
+  <div class="stat green"><div class="n" id="s-fhir">0</div><div class="l">FHIR/API</div></div>
+  <div class="stat orange"><div class="n" id="s-testenv">0</div><div class="l">Test-omgeving</div></div>
+  <div class="stat blue"><div class="n" id="s-totaal">0</div><div class="l">Totaal geladen</div></div>
+  <div class="stat"><div class="n" id="s-zichtbaar">0</div><div class="l">Zichtbaar</div></div>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Zoek op URL, domein, status, categorie..." oninput="renderTable()">
+</div>
+
+<div id="results">
+  <div class="drop-zone" id="dropZone">
+    <div class="empty">
+      <div class="icon">📡</div>
+      <h2>Sleep een HAR-bestand hiernaartoe</h2>
+      <p>Of klik op <strong>Laad HAR / JSON</strong> hierboven.<br>
+      Exporteer vanuit Proxyman via <strong>File → Export → HAR</strong><br>
+      of selecteer meerdere requests → rechtermuisknop → <em>Export as HAR</em>.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DOSSIER DOMEINEN — achterhaald uit forensisch dossier
+// ============================================================
+const DOMEINEN = {
+  PRIMAIR: [
+    'mijnspaarnegasthuis.nl',
+    'mss.spaarnegasthuis.nl',
+    'spaarnegasthuis.nl',
+    'gezondheidsmeter.nl',
+    'mijn.parnassia.nl',
+    'mijn.brijder.nl',
+    'mijn.psyq.nl',
+  ],
+  AUTH: [
+    'focuszorgteam.nl',
+    'login.focuszorgteam.nl',
+    'authorization.focuszorgteam.nl',
+  ],
+  'TEST-ENV': [
+    'test.authorization.focuszorgteam.nl',
+    'test.focuszorgteam.nl',
+    'acc.focuszorgteam.nl',
+    'tst.spaarnegasthuis.nl',
+    'acc.spaarnegasthuis.nl',
+  ],
+  TRACKER: [
+    'visualwebsiteoptimizer.com',
+    'dev.visualwebsiteoptimizer.com',
+    'static.hotjar.com',
+    'hotjar.com',
+    'cookie-compliance.azurewebsites.net',
+    'chameleon.io',
+    'app.chameleon.io',
+    'turbocookie',
+    'pendo.io',
+    'fullstory.com',
+    'logrocket.io',
+    'segment.io',
+    'mixpanel.com',
+  ],
+};
+
+const FHIR_PADEN = [
+  '/fhir/', '/api/fhir', '/Patient', '/Condition', '/Observation',
+  '/DocumentReference', '/Practitioner', '/MedicationRequest', '/Encounter',
+  '/DiagnosticReport', '/AllergyIntolerance', '/Immunization', '/Procedure',
+  '/CarePlan', '/CareTeam', '/Communication', '/AuditEvent',
+  '/access', '/audit', '/lsp', '/LSP',
+];
+
+const DBC_PADEN = ['/declaratie', '/billing', '/dbc', '/adl', '/zorgactiviteit'];
+
+const UI_FRAUDE_KEYWORDS = [
+  'display:none', 'visibility:hidden', 'opacity:0', 'hideProviderName',
+  'max-height:0', 'areResultsFullyLoaded":false', 'lg-hide',
+];
+
+const JURIDISCH_MAP = {
+  TRACKER:    'AVG Art. 6 / 9 — tracking zonder toestemming op medisch portaal',
+  FHIR:       'WGBO Art. 7:454 / AVG Art. 15 — inzagerecht / dataintegriteit',
+  'TEST-ENV': 'NEN 7510 §12.1.4 — test-omgeving in productie (KRITIEK)',
+  PRIMAIR:    'Kerndomein dossier — volledig loggen vereist',
+  AUTH:       'WABVPZ Art. 15a — authenticatie en autorisatiechain',
+  DBC:        'Zvw Art. 5 — fraudedetectie declaraties',
+  'UI-FRAUDE':'AVG Art. 5(1)(d) — transparantieverplichting / verberging data',
+  AUTH:       'NEN 7510 / WABVPZ — autorisatielaag',
+  OVERIG:     '',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let allEntries = [];
+let activeFilter = 'ALL';
+let openRowIdx = null;
+
+// ============================================================
+// CATEGORISATIE
+// ============================================================
+function categoriseer(entry) {
+  const url = (entry.request?.url || entry.url || '').toLowerCase();
+  const host = (() => {
+    try { return new URL(entry.request?.url || entry.url || '').hostname.toLowerCase(); } catch { return url; }
+  })();
+
+  // Test-omgeving heeft prioriteit
+  if (DOMEINEN['TEST-ENV'].some(d => host.includes(d))) return 'TEST-ENV';
+
+  // Tracker
+  if (DOMEINEN.TRACKER.some(d => host.includes(d) || url.includes(d.replace(/\./g, '\\.')))) return 'TRACKER';
+
+  // FHIR/API
+  if (FHIR_PADEN.some(p => url.includes(p.toLowerCase()))) return 'FHIR';
+
+  // DBC
+  if (DBC_PADEN.some(p => url.includes(p))) return 'DBC';
+
+  // Auth
+  if (DOMEINEN.AUTH.some(d => host.includes(d))) return 'AUTH';
+
+  // Primair
+  if (DOMEINEN.PRIMAIR.some(d => host.includes(d))) return 'PRIMAIR';
+
+  // UI-fraude check (response body)
+  const body = JSON.stringify(entry.response || '').toLowerCase();
+  if (UI_FRAUDE_KEYWORDS.some(k => body.includes(k.toLowerCase()))) return 'UI-FRAUDE';
+
+  return null; // niet relevant
+}
+
+function isRelevant(entry) {
+  return categoriseer(entry) !== null;
+}
+
+// ============================================================
+// FILE LOADING
+// ============================================================
+function loadFiles(files) {
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        const entries = data.log?.entries || data.entries || (Array.isArray(data) ? data : []);
+        const relevant = entries.filter(isRelevant).map((entry, i) => ({
+          ...entry,
+          _cat: categoriseer(entry),
+          _id: allEntries.length + i,
+          _file: file.name,
+        }));
+        allEntries = allEntries.concat(relevant);
+        updateStats();
+        renderTable();
+      } catch(err) {
+        alert('Fout bij lezen: ' + file.name + '\n' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+document.getElementById('fileInput').addEventListener('change', e => loadFiles(e.target.files));
+
+// Drag-and-drop
+const dropZone = document.getElementById('dropZone');
+document.body.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+document.body.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  loadFiles(e.dataTransfer.files);
+});
+
+// ============================================================
+// FILTER & RENDER
+// ============================================================
+function setFilter(cat, el) {
+  activeFilter = cat;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+function getVisible() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  return allEntries.filter(e => {
+    const catMatch = activeFilter === 'ALL' || e._cat === activeFilter;
+    const url = (e.request?.url || e.url || '').toLowerCase();
+    const queryMatch = !q || url.includes(q) || e._cat.toLowerCase().includes(q) ||
+      String(e.response?.status || '').includes(q) ||
+      (e.request?.method || '').toLowerCase().includes(q);
+    return catMatch && queryMatch;
+  });
+}
+
+function renderTable() {
+  const visible = getVisible();
+  document.getElementById('s-zichtbaar').textContent = visible.length;
+
+  const container = document.getElementById('results');
+
+  if (allEntries.length === 0) {
+    container.innerHTML = `<div class="drop-zone" id="dropZone">
+      <div class="empty"><div class="icon">📡</div>
+      <h2>Sleep een HAR-bestand hiernaartoe</h2>
+      <p>Exporteer vanuit Proxyman via <strong>File → Export → HAR</strong><br>
+      of selecteer meerdere requests → rechtermuisknop → <em>Export as HAR</em>.</p></div></div>`;
+    return;
+  }
+
+  if (visible.length === 0) {
+    container.innerHTML = `<div class="empty"><div class="icon">🔎</div><h2>Geen resultaten</h2><p>Pas de filter of zoekterm aan.</p></div>`;
+    return;
+  }
+
+  let html = `<div class="row header">
+    <div class="cell">Categorie</div>
+    <div class="cell">Method</div>
+    <div class="cell hide-mobile">Domein</div>
+    <div class="cell">URL</div>
+    <div class="cell">Status</div>
+    <div class="cell hide-mobile">Bestand</div>
+  </div>`;
+
+  visible.forEach((entry, i) => {
+    const url = entry.request?.url || entry.url || '';
+    let host = '';
+    try { host = new URL(url).hostname; } catch { host = url.substring(0, 30); }
+    const path = (() => { try { const u = new URL(url); return u.pathname + u.search; } catch { return url; } })();
+    const method = entry.request?.method || '?';
+    const status = entry.response?.status || '-';
+    const statusClass = status >= 200 && status < 300 ? 'status-ok' : status >= 400 ? 'status-err' : 'status-redir';
+    const cat = entry._cat;
+
+    html += `<div class="row" onclick="toggleDetail(${entry._id})">
+      <div class="cell"><span class="tag ${cat}">${cat}</span></div>
+      <div class="cell"><span class="method ${method}">${method}</span></div>
+      <div class="cell hide-mobile" title="${host}">${host}</div>
+      <div class="cell" title="${url}">${path}</div>
+      <div class="cell"><span class="${statusClass}">${status}</span></div>
+      <div class="cell hide-mobile" title="${entry._file}">${(entry._file || '').substring(0,20)}</div>
+    </div>
+    <div class="detail-panel" id="detail-${entry._id}">
+      ${buildDetail(entry)}
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function buildDetail(entry) {
+  const url = entry.request?.url || entry.url || '';
+  const reqHeaders = entry.request?.headers || [];
+  const resHeaders = entry.response?.headers || [];
+  const reqBody = entry.request?.postData?.text || entry.request?.body || '';
+  const resBody = (() => {
+    try {
+      const t = entry.response?.content?.text || entry.response?.body || '';
+      if (t.length > 2000) return t.substring(0, 2000) + '\n… (ingekort)';
+      return t;
+    } catch { return ''; }
+  })();
+  const juridisch = JURIDISCH_MAP[entry._cat] || '';
+
+  const formatHeaders = (headers) => {
+    if (Array.isArray(headers)) return headers.map(h => `${h.name}: ${h.value}`).join('\n');
+    return JSON.stringify(headers, null, 2);
+  };
+
+  return `<div class="detail-grid">
+    <div class="detail-section">
+      <h3>Request</h3>
+      <pre>${escHtml(url)}\n\n${escHtml(formatHeaders(reqHeaders))}${reqBody ? '\n\n' + escHtml(reqBody.substring(0,1000)) : ''}</pre>
+    </div>
+    <div class="detail-section">
+      <h3>Response headers</h3>
+      <pre>${escHtml(formatHeaders(resHeaders))}</pre>
+    </div>
+    <div class="detail-section">
+      <h3>Response body (fragment)</h3>
+      <pre>${escHtml(resBody || '(leeg / binair)')}</pre>
+    </div>
+    <div class="detail-section">
+      <h3>Juridische grondslag</h3>
+      <div class="juridisch-box">${escHtml(juridisch)}</div>
+      ${buildUIFraudeWarning(entry)}
+    </div>
+  </div>`;
+}
+
+function buildUIFraudeWarning(entry) {
+  const body = JSON.stringify(entry.response || '').toLowerCase();
+  const hits = UI_FRAUDE_KEYWORDS.filter(k => body.includes(k.toLowerCase()));
+  if (!hits.length) return '';
+  return `<div class="juridisch-box" style="margin-top:8px;border-color:#7c3aed;color:#c4b5fd;">
+    ⚠️ UI-fraude patronen: ${hits.map(h => `<code>${escHtml(h)}</code>`).join(', ')}
+  </div>`;
+}
+
+function toggleDetail(id) {
+  const panel = document.getElementById('detail-' + id);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.detail-panel.open').forEach(p => p.classList.remove('open'));
+  if (!isOpen) panel.classList.add('open');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function updateStats() {
+  document.getElementById('s-tracker').textContent = allEntries.filter(e => e._cat === 'TRACKER').length;
+  document.getElementById('s-fhir').textContent = allEntries.filter(e => e._cat === 'FHIR').length;
+  document.getElementById('s-testenv').textContent = allEntries.filter(e => e._cat === 'TEST-ENV').length;
+  document.getElementById('s-totaal').textContent = allEntries.length;
+  document.getElementById('s-zichtbaar').textContent = getVisible().length;
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportCSV() {
+  const rows = getVisible();
+  if (!rows.length) return alert('Geen rijen om te exporteren.');
+  const header = ['Categorie','Method','URL','Status','Juridische_Grondslag','Bestand','Tijdstip'];
+  const lines = [header.join(';')].concat(rows.map(e => [
+    e._cat,
+    e.request?.method || '',
+    e.request?.url || e.url || '',
+    e.response?.status || '',
+    (JURIDISCH_MAP[e._cat] || '').replace(/;/g, ','),
+    e._file || '',
+    e.startedDateTime || '',
+  ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(';')));
+  download('proxyman_dossier_filter.csv', lines.join('\n'), 'text/csv');
+}
+
+function exportJSON() {
+  const rows = getVisible();
+  if (!rows.length) return alert('Geen rijen om te exporteren.');
+  const out = rows.map(e => ({
+    categorie: e._cat,
+    url: e.request?.url || e.url,
+    method: e.request?.method,
+    status: e.response?.status,
+    juridisch: JURIDISCH_MAP[e._cat] || '',
+    bestand: e._file,
+    tijdstip: e.startedDateTime,
+    request_headers: e.request?.headers,
+    response_status_text: e.response?.statusText,
+  }));
+  download('proxyman_dossier_filter.json', JSON.stringify(out, null, 2), 'application/json');
+}
+
+function download(name, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = name;
+  a.click();
+}
+
+function clearAll() {
+  allEntries = [];
+  updateStats();
+  renderTable();
+}
+
+// Init
+updateStats();
+</script>
+</body>
+</html>
