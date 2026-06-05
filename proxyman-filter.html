@@ -108,6 +108,7 @@
   <button class="btn btn-secondary" onclick="exportCSV()">💾 Export CSV</button>
   <button class="btn btn-secondary" onclick="exportJSON()">📋 Export JSON</button>
   <button class="btn btn-secondary" onclick="clearAll()">✕ Wis</button>
+  <button class="btn btn-secondary" onclick="toggleDomainDiscovery()">🌐 Ontdek domeinen</button>
   <div class="filters">
     <button class="filter-chip active" data-cat="ALL" onclick="setFilter('ALL',this)">Alles</button>
     <button class="filter-chip tracker" data-cat="TRACKER" onclick="setFilter('TRACKER',this)">🚨 Trackers</button>
@@ -130,6 +131,22 @@
 
 <div class="search-bar">
   <input type="text" id="searchInput" placeholder="Zoek op URL, domein, status, categorie..." oninput="renderTable()">
+</div>
+
+<div id="domain-discovery" style="display:none; padding:16px 24px; background:#0a0f1a; border-bottom:1px solid #1e293b;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+    <h2 style="font-size:14px; font-weight:700; color:#94a3b8;">🌐 Alle domeinen in geladen bestanden</h2>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <input id="domainSearch" type="text" placeholder="Zoek domein..." oninput="renderDomains()"
+        style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:12px;outline:none;width:200px;">
+      <button class="btn btn-secondary" style="font-size:12px;" onclick="addCustomDomain()">+ Voeg toe aan filter</button>
+    </div>
+  </div>
+  <div id="domain-list" style="display:flex; flex-wrap:wrap; gap:6px; max-height:200px; overflow-y:auto;"></div>
+  <div style="margin-top:10px; font-size:11px; color:#475569;">
+    Klik op een domein om het te selecteren → klik <strong>+ Voeg toe aan filter</strong> om het als PRIMAIR toe te voegen.
+    Domeinen <span style="color:#f87171;">rood</span> = al in filterlijst. <span style="color:#4ade80;">Groen</span> = geselecteerd.
+  </div>
 </div>
 
 <div id="results">
@@ -494,6 +511,162 @@ function clearAll() {
   allEntries = [];
   updateStats();
   renderTable();
+}
+
+// ============================================================
+// DOMAIN DISCOVERY
+// ============================================================
+let selectedDiscoveryDomain = null;
+let customDomains = [];
+
+function getAllKnownDomains() {
+  return [
+    ...DOMEINEN.PRIMAIR,
+    ...DOMEINEN.AUTH,
+    ...DOMEINEN['TEST-ENV'],
+    ...DOMEINEN.TRACKER,
+    ...customDomains,
+  ];
+}
+
+function toggleDomainDiscovery() {
+  const panel = document.getElementById('domain-discovery');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) renderDomains();
+}
+
+function renderDomains() {
+  const q = (document.getElementById('domainSearch')?.value || '').toLowerCase();
+  // Count all unique hostnames from ALL entries (not just filtered)
+  const counts = {};
+  // Also scan raw HAR entries before filtering — use a separate allRawEntries store
+  (window._allRawEntries || []).forEach(entry => {
+    try {
+      const host = new URL(entry.request?.url || entry.url || '').hostname.toLowerCase();
+      if (host) counts[host] = (counts[host] || 0) + 1;
+    } catch {}
+  });
+
+  const known = getAllKnownDomains();
+  const sorted = Object.entries(counts)
+    .filter(([h]) => !q || h.includes(q))
+    .sort((a, b) => b[1] - a[1]);
+
+  const container = document.getElementById('domain-list');
+  if (!sorted.length) {
+    container.innerHTML = '<span style="color:#475569;font-size:12px;">Laad eerst een HAR-bestand.</span>';
+    return;
+  }
+
+  container.innerHTML = sorted.map(([host, count]) => {
+    const inFilter = known.some(d => host.includes(d) || d.includes(host));
+    const isSelected = selectedDiscoveryDomain === host;
+    const bg = isSelected ? '#0a3320' : inFilter ? '#1a0a0a' : '#1a1f2e';
+    const color = isSelected ? '#4ade80' : inFilter ? '#f87171' : '#94a3b8';
+    const border = isSelected ? '#16a34a' : inFilter ? '#7f1d1d' : '#334155';
+    return `<span onclick="selectDomain('${host}')" style="cursor:pointer;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;
+      background:${bg};color:${color};border:1px solid ${border};white-space:nowrap;">
+      ${inFilter ? '✓ ' : ''}${host} <span style="opacity:0.5;">(${count})</span>
+    </span>`;
+  }).join('');
+}
+
+function selectDomain(host) {
+  selectedDiscoveryDomain = selectedDiscoveryDomain === host ? null : host;
+  renderDomains();
+}
+
+function addCustomDomain() {
+  if (!selectedDiscoveryDomain) { alert('Klik eerst op een domein in de lijst.'); return; }
+  if (customDomains.includes(selectedDiscoveryDomain)) { alert('Domein staat al in de filter.'); return; }
+  customDomains.push(selectedDiscoveryDomain);
+  // Re-categorize allEntries with new custom domain
+  window._allRawEntries.forEach(entry => {
+    try {
+      const host = new URL(entry.request?.url || entry.url || '').hostname.toLowerCase();
+      if (host.includes(selectedDiscoveryDomain) || selectedDiscoveryDomain.includes(host)) {
+        entry._cat = entry._cat || 'PRIMAIR';
+        if (!allEntries.find(e => e === entry)) allEntries.push(entry);
+      }
+    } catch {}
+  });
+  selectedDiscoveryDomain = null;
+  updateStats();
+  renderTable();
+  renderDomains();
+}
+
+// ============================================================
+// Override loadFiles to also store raw entries
+// ============================================================
+window._allRawEntries = [];
+const _origLoadFiles = loadFiles;
+
+// Patch the file reader to also populate _allRawEntries
+document.getElementById('fileInput').removeEventListener('change', null);
+document.getElementById('fileInput').addEventListener('change', e => {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const entries = data.log?.entries || data.entries || (Array.isArray(data) ? data : []);
+        const withMeta = entries.map((entry, i) => ({
+          ...entry,
+          _cat: categoriseer(entry),
+          _id: window._allRawEntries.length + i,
+          _file: file.name,
+        }));
+        window._allRawEntries = window._allRawEntries.concat(withMeta);
+        const relevant = withMeta.filter(e => e._cat !== null);
+        allEntries = allEntries.concat(relevant);
+        updateStats();
+        renderTable();
+        if (document.getElementById('domain-discovery').style.display !== 'none') renderDomains();
+      } catch(err) { alert('Fout bij lezen: ' + file.name + '\n' + err.message); }
+    };
+    reader.readAsText(file);
+  });
+});
+
+document.body.removeEventListener('drop', null);
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('dropZone')?.classList.remove('drag-over');
+  Array.from(e.dataTransfer.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const entries = data.log?.entries || data.entries || (Array.isArray(data) ? data : []);
+        const withMeta = entries.map((entry, i) => ({
+          ...entry,
+          _cat: categoriseer(entry),
+          _id: window._allRawEntries.length + i,
+          _file: file.name,
+        }));
+        window._allRawEntries = window._allRawEntries.concat(withMeta);
+        const relevant = withMeta.filter(e => e._cat !== null);
+        allEntries = allEntries.concat(relevant);
+        updateStats();
+        renderTable();
+        if (document.getElementById('domain-discovery').style.display !== 'none') renderDomains();
+      } catch(err) { alert('Fout bij lezen: ' + file.name + '\n' + err.message); }
+    };
+    reader.readAsText(file);
+  });
+});
+
+const _origClearAll = clearAll;
+function clearAll() {
+  allEntries = [];
+  window._allRawEntries = [];
+  customDomains = [];
+  selectedDiscoveryDomain = null;
+  updateStats();
+  renderTable();
+  renderDomains();
 }
 
 // Init
