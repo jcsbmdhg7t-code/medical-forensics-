@@ -156,6 +156,7 @@ def analyse_archive(path: str) -> ArchiveReport:
     report = ArchiveReport(source=os.path.basename(path), transactions=len(txs))
 
     hsts_warned = False
+    jsessionids_seen: set[str] = set()
 
     for tx in txs:
         body_str = tx.resp_body.decode("utf-8", errors="replace")
@@ -184,9 +185,10 @@ def analyse_archive(path: str) -> ArchiveReport:
                 report.add("HIGH", tx.id, "cookie-flags",
                            f"Set-Cookie missing {', '.join(flags)}: {sc[:60]}")
 
-        # ── JSESSIONID entropy ───────────────────────────────────────────
+        # ── JSESSIONID entropy (deduplicated per unique value) ───────────
         jsid = tx.cookies.get("JSESSIONID", "")
-        if jsid and len(jsid) == 32 and all(c in "0123456789ABCDEFabcdef" for c in jsid):
+        if jsid and jsid not in jsessionids_seen and len(jsid) == 32 and all(c in "0123456789ABCDEFabcdef" for c in jsid):
+            jsessionids_seen.add(jsid)
             report.add("MEDIUM", tx.id, "token",
                        f"JSESSIONID 32-char hex — verify server-side entropy: {jsid}")
 
