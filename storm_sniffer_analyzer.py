@@ -1,41 +1,4 @@
 #!/usr/bin/env python3
-"""
-╔══════════════════════════════════════════════════════════════════════════════╗
-║  STORM SNIFFER / PROXYMAN FORENSISCH ANALYZER                               ║
-║  Dossier Grothe — Rechtbank Noord-Holland C/15/376914                       ║
-║  Hof van Discipline kenmerk 260153                                          ║
-║  Versie 1.0 — 18 juni 2026                                                  ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-Analyseert Proxyman (.proxymanlogv2) en HAR-captures op forensische markers
-specifiek voor MijnSpaarneGasthuis / Epic EPD-systeem:
-
-  - CSS-verberging (.hiddenProvider, CEDataExternal, SRonly, display:none)
-  - Anonieme auteurs (nullFlavor="UNK", extension="999999")
-  - F19.1 / SNOMED-codes (361055000, 228273003, 228366006)
-  - CORS-blokkade audit trail endpoints
-  - Feature flags (DISABLEMYCONDITIONS, DISABLEPLANOFCARE, USERAUDITTRAIL)
-  - Hotjar/Sentry trackers
-  - Nachtelijke timestamps (00:00–06:00 CET)
-  - DOM-manipulatie signalen (noView:true, GUARD-blokken)
-  - Override.css indicatoren
-
-Uitvoer:
-  - Forensisch logbestand (JSON + plaintext)
-  - SHA-256 hash per gevonden bewijs
-  - Tijdlijn gesorteerde bevindingen
-
-Gebruik:
-  python3 storm_sniffer_analyzer.py <capture_bestand> [--output <map>]
-
-  Ondersteunde formaten:
-    .proxymanlogv2   Proxyman log v2
-    .har             HTTP Archive
-    .json            Algemeen JSON netwerk-capture
-
-Vereiste packages: geen (alleen stdlib)
-"""
-
 import os
 import sys
 import json
@@ -47,18 +10,8 @@ import re
 import datetime
 import pathlib
 import argparse
-import struct
-import io
-import html as html_module
-import urllib.parse
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FORENSISCHE PATROON-BIBLIOTHEEK
-# Gebaseerd op NB-01 t/m NB-134, CC-A t/m CC-J (MASTER Forensisch Dossier)
-# ─────────────────────────────────────────────────────────────────────────────
 
 CSS_VERBERGING = [
-    # NB-12/53: CSS klassen die inhoud voor patiënt verbergen
     (re.compile(r'\.hiddenProvider\s*\{[^}]*display\s*:\s*none', re.I), "CSS .hiddenProvider display:none — patiëntgegevens verborgen (NB-12)"),
     (re.compile(r'CEDataExternal\s*\{[^}]*display\s*:\s*none', re.I), "CSS CEDataExternal display:none — externe data verborgen (NB-12)"),
     (re.compile(r'\.SRonly|SRonly\s*\{[^}]*left\s*:\s*-\d{4,}px', re.I), "CSS SRonly — schermlezer-verberging (NB-53/56)"),
@@ -72,7 +25,6 @@ CSS_VERBERGING = [
 ]
 
 CDA_ANOMALIEEN = [
-    # NB-18/47: Anonieme auteurs in CDA
     (re.compile(r'nullFlavor="UNK"', re.I), "CDA nullFlavor=UNK — anonieme auteur (NB-18/47/49)"),
     (re.compile(r'extension="999999"', re.I), "CDA ext=999999 — anonymous/unidentifiable Epic actor (NB-18)"),
     (re.compile(r'extension="373282512"', re.I), "CDA ext=373282512 — A. al-Mousawi (NB-05/95)"),
@@ -86,7 +38,6 @@ CDA_ANOMALIEEN = [
 ]
 
 DIAGNOSE_CODES = [
-    # NB-01/02/03/116: F19.1 en gerelateerde SNOMED-codes
     (re.compile(r'F19\.1|F19\b', re.I), "ICD-10 F19.1 — neusdruppelmisbruik (gefabriceerd) (NB-01/116)"),
     (re.compile(r'neusdruppelmisbruik', re.I), "displayName neusdruppelmisbruik (NB-01/116)"),
     (re.compile(r'361055000', re.I), "SNOMED 361055000 — nasal spray misuse / neusdruppelmisbruik (NB-03)"),
@@ -101,7 +52,6 @@ DIAGNOSE_CODES = [
 ]
 
 AUDIT_TRAIL_BLOKKADE = [
-    # NB-163: CORS-blokkade audit trail endpoints
     (re.compile(r'GetClinicianAccessLogSettings', re.I), "Audit trail endpoint: GetClinicianAccessLogSettings (NB-163)"),
     (re.compile(r'GetClinicianAccessLogEntries', re.I), "Audit trail endpoint: GetClinicianAccessLogEntries (NB-163)"),
     (re.compile(r'GetThirdPartyAccessLogEntries', re.I), "Audit trail endpoint: GetThirdPartyAccessLogEntries (NB-163)"),
@@ -111,7 +61,6 @@ AUDIT_TRAIL_BLOKKADE = [
 ]
 
 FEATURE_FLAGS = [
-    # NB-11/163: Epic feature flags
     (re.compile(r'DISABLEMYCONDITIONS', re.I), "Feature flag DISABLEMYCONDITIONS actief (NB-11)"),
     (re.compile(r'DISABLEPLANOFCARE', re.I), "Feature flag DISABLEPLANOFCARE actief (NB-11)"),
     (re.compile(r'AUTOGENERATESIGNATURE', re.I), "Feature flag AUTOGENERATESIGNATURE — automatische digitale handtekening (NB-82)"),
@@ -125,7 +74,6 @@ FEATURE_FLAGS = [
 ]
 
 TRACKERS = [
-    # NB-79: externe trackers
     (re.compile(r'hotjar\.com|hjid=', re.I), "Hotjar tracker — keystroke recording (NB-79/53)"),
     (re.compile(r'recording_capture_keystrokes\s*=\s*true', re.I), "Hotjar keystroke capture actief (NB-53/79)"),
     (re.compile(r'sentry\.io|@sentry/', re.I), "Sentry.io telemetrie (VS) (NB-69/79)"),
@@ -142,7 +90,6 @@ TRACKERS = [
 ]
 
 LSP_FHIR = [
-    # NB-06/15/113: LSP-sweeps en FHIR-anomalieën
     (re.compile(r'\$lastn', re.I), "FHIR $lastn — MedMij re-replay kwetsbaarheid (NB-109)"),
     (re.compile(r'365508006', re.I), "FHIR observation code 365508006 — drie sessiebundeling (NB-109)"),
     (re.compile(r'transactie.{0,10}77832|transactieId.{0,10}77832', re.I), "Transactie-ID 77832 — SNOMED 228273003 SUCCESS 08-01-2026 (NB-23/159)"),
@@ -152,16 +99,16 @@ LSP_FHIR = [
     (re.compile(r'consent.*ingetrokken|withdrawal|revoke', re.I), "Consent intrekking / revocatie"),
 ]
 
-NACHT_TIJDEN = re.compile(r'["\s](\d{4}-\d{2}-\d{2}T(?:0[0-5])\d:\d{2}:\d{2})|'
-                           r'(\d{14}\+0[01]00)\b|'
-                           r'T(0[0-5]):\d{2}:\d{2}')
+NACHT_TIJDEN = re.compile(
+    r'["\s](\d{4}-\d{2}-\d{2}T(?:0[0-5])\d:\d{2}:\d{2})|(\d{14}\+0[01]00)\b|T(0[0-5]):\d{2}:\d{2}'
+)
 SPECIFIEKE_NACHTTIJDEN = [
-    "20130214062300",    # 14-02-2013 06:23 wettelijk geslacht (NB-162)
-    "20191017050200",    # 17-10-2019 05:02 Verlaan termination (NB-165)
-    "20260110033455",    # 10-01-2026 03:34:55 AVG-bevriezing (NB-166)
-    "20260111235500",    # 11-01-2026 23:55 Medicom sweep (NB-157)
-    "20260128025900",    # 28-01-2026 02:59 Medicom sweep (NB-157)
-    "20260210023300",    # 10-02-2026 02:33 LibreOffice batch (NB-165)
+    "20130214062300",
+    "20191017050200",
+    "20260110033455",
+    "20260111235500",
+    "20260128025900",
+    "20260210023300",
 ]
 
 HTTP_STATUS_VERDACHT = {
@@ -181,9 +128,6 @@ VERDACHTE_URLS = [
     (re.compile(r'test\.authorization\.focuszorgteam', re.I), "FocusZorgTeam test-server (NB-91)"),
 ]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# KERN-FUNCTIES
-# ─────────────────────────────────────────────────────────────────────────────
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -195,29 +139,19 @@ def timestamp_nu() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def is_nacht(tijdstempel: str) -> bool:
-    """Detecteer nachtelijke tijdstippen (00:00–06:00 CET = 23:00–05:00 UTC)."""
     if not tijdstempel:
         return False
-    uren_patterns = [
-        re.search(r'T(\d{2}):\d{2}:\d{2}', tijdstempel),
-        re.search(r'(\d{2})\d{2}\d{2}[+-]\d{4}$', tijdstempel),
-    ]
-    for m in uren_patterns:
-        if m:
-            uur = int(m.group(1))
-            if 0 <= uur < 6:
-                return True
+    for m in [re.search(r'T(\d{2}):\d{2}:\d{2}', tijdstempel),
+               re.search(r'(\d{2})\d{2}\d{2}[+-]\d{4}$', tijdstempel)]:
+        if m and 0 <= int(m.group(1)) < 6:
+            return True
     return False
 
 def decode_body(body_raw, encoding=""):
-    """Decodeer response body vanuit base64/gzip/raw."""
     if not body_raw:
         return ""
     try:
-        if isinstance(body_raw, str):
-            data = base64.b64decode(body_raw + "==")
-        else:
-            data = body_raw
+        data = base64.b64decode(body_raw + "==") if isinstance(body_raw, str) else body_raw
         if encoding in ("gzip", "gz") or data[:2] == b'\x1f\x8b':
             data = gzip.decompress(data)
         elif encoding in ("deflate", "zlib"):
@@ -227,16 +161,12 @@ def decode_body(body_raw, encoding=""):
                 data = zlib.decompress(data, -15)
         return data.decode("utf-8", errors="replace")
     except Exception:
-        if isinstance(body_raw, str):
-            return body_raw
-        return body_raw.decode("utf-8", errors="replace")
+        return body_raw if isinstance(body_raw, str) else body_raw.decode("utf-8", errors="replace")
 
 
 class Bevinding:
-    """Één forensische bevinding met metadata."""
     __slots__ = ["categorie", "omschrijving", "url", "methode", "status",
                  "tijdstempel", "context", "hash_waarde", "ernst"]
-
     ERNSTEN = {"KRITIEK": 4, "HOOG": 3, "MEDIUM": 2, "LAAG": 1}
 
     def __init__(self, categorie, omschrijving, url="", methode="", status=0,
@@ -253,110 +183,73 @@ class Bevinding:
 
     def als_dict(self) -> dict:
         return {
-            "ernst": self.ernst,
-            "categorie": self.categorie,
-            "omschrijving": self.omschrijving,
-            "url": self.url,
-            "methode": self.methode,
-            "http_status": self.status,
-            "tijdstempel": self.tijdstempel,
-            "sha256": self.hash_waarde,
-            "context": self.context,
+            "ernst": self.ernst, "categorie": self.categorie, "omschrijving": self.omschrijving,
+            "url": self.url, "methode": self.methode, "http_status": self.status,
+            "tijdstempel": self.tijdstempel, "sha256": self.hash_waarde, "context": self.context,
         }
 
     def __lt__(self, other):
         return self.ERNSTEN.get(self.ernst, 0) > self.ERNSTEN.get(other.ernst, 0)
 
 
-def scan_tekst(tekst: str, url: str, methode: str, status: int,
-               tijdstempel: str) -> list:
-    """Scan één HTTP-transactie op alle forensische patronen."""
+def scan_tekst(tekst: str, url: str, methode: str, status: int, tijdstempel: str) -> list:
     gevonden = []
 
     def voeg_toe(categorie, omschrijving, ernst, match_context=""):
-        gevonden.append(Bevinding(
-            categorie=categorie,
-            omschrijving=omschrijving,
-            url=url,
-            methode=methode,
-            status=status,
-            tijdstempel=tijdstempel,
-            context=match_context,
-            ernst=ernst,
-        ))
+        gevonden.append(Bevinding(categorie=categorie, omschrijving=omschrijving,
+            url=url, methode=methode, status=status, tijdstempel=tijdstempel,
+            context=match_context, ernst=ernst))
 
-    # CSS verberging
     for patroon, beschrijving in CSS_VERBERGING:
         m = patroon.search(tekst)
         if m:
-            voeg_toe("CSS_VERBERGING", beschrijving, "KRITIEK",
-                     tekst[max(0, m.start()-80):m.end()+80])
+            voeg_toe("CSS_VERBERGING", beschrijving, "KRITIEK", tekst[max(0, m.start()-80):m.end()+80])
 
-    # CDA-anomalieën
     for patroon, beschrijving in CDA_ANOMALIEEN:
         for m in patroon.finditer(tekst):
-            voeg_toe("CDA_ANOMALIE", beschrijving, "KRITIEK",
-                     tekst[max(0, m.start()-80):m.end()+80])
-            break  # één per type per transactie
+            voeg_toe("CDA_ANOMALIE", beschrijving, "KRITIEK", tekst[max(0, m.start()-80):m.end()+80])
+            break
 
-    # Diagnose-codes
     for patroon, beschrijving in DIAGNOSE_CODES:
         m = patroon.search(tekst)
         if m:
-            voeg_toe("DIAGNOSE_CODE", beschrijving, "KRITIEK",
-                     tekst[max(0, m.start()-100):m.end()+100])
+            voeg_toe("DIAGNOSE_CODE", beschrijving, "KRITIEK", tekst[max(0, m.start()-100):m.end()+100])
 
-    # Audit trail blokkade
     for patroon, beschrijving in AUDIT_TRAIL_BLOKKADE:
         m = patroon.search(tekst)
         if m:
-            ernst = "KRITIEK" if status in (0, 403, 401) else "HOOG"
-            voeg_toe("AUDIT_BLOKKADE", beschrijving, ernst,
+            voeg_toe("AUDIT_BLOKKADE", beschrijving,
+                     "KRITIEK" if status in (0, 403, 401) else "HOOG",
                      tekst[max(0, m.start()-60):m.end()+60])
 
-    # Feature flags
     for patroon, beschrijving in FEATURE_FLAGS:
         m = patroon.search(tekst)
         if m:
-            voeg_toe("FEATURE_FLAG", beschrijving, "HOOG",
-                     tekst[max(0, m.start()-60):m.end()+60])
+            voeg_toe("FEATURE_FLAG", beschrijving, "HOOG", tekst[max(0, m.start()-60):m.end()+60])
 
-    # Trackers
     for patroon, beschrijving in TRACKERS:
         m = patroon.search(tekst)
         if m:
-            voeg_toe("TRACKER", beschrijving, "HOOG",
-                     tekst[max(0, m.start()-60):m.end()+60])
+            voeg_toe("TRACKER", beschrijving, "HOOG", tekst[max(0, m.start()-60):m.end()+60])
 
-    # LSP/FHIR
     for patroon, beschrijving in LSP_FHIR:
         m = patroon.search(tekst)
         if m:
-            voeg_toe("LSP_FHIR", beschrijving, "HOOG",
-                     tekst[max(0, m.start()-80):m.end()+80])
+            voeg_toe("LSP_FHIR", beschrijving, "HOOG", tekst[max(0, m.start()-80):m.end()+80])
 
-    # Nachtelijke timestamps
     for nt in SPECIFIEKE_NACHTTIJDEN:
         if nt[:8] in tekst:
-            voeg_toe("NACHT_OPERATIE",
-                     f"Specifieke nacht-timestamp gevonden: {nt}",
+            voeg_toe("NACHT_OPERATIE", f"Specifieke nacht-timestamp gevonden: {nt}",
                      "KRITIEK", f"timestamp {nt} aangetroffen in respons")
 
     nacht_m = NACHT_TIJDEN.search(tekst)
     if nacht_m and is_nacht(nacht_m.group(0)):
-        voeg_toe("NACHT_TIJDSTEMPEL",
-                 f"Nachtelijk tijdstempel in data: {nacht_m.group(0)}",
+        voeg_toe("NACHT_TIJDSTEMPEL", f"Nachtelijk tijdstempel in data: {nacht_m.group(0)}",
                  "MEDIUM", nacht_m.group(0))
 
-    # HTTP-status verdacht
-    if status in HTTP_STATUS_VERDACHT:
-        # Alleen melden bij relevante URLs
-        if any(p.search(url) for p, _ in VERDACHTE_URLS):
-            voeg_toe("HTTP_BLOKKADE",
-                     f"HTTP {status}: {HTTP_STATUS_VERDACHT[status]}",
-                     "KRITIEK", f"URL: {url}")
+    if status in HTTP_STATUS_VERDACHT and any(p.search(url) for p, _ in VERDACHTE_URLS):
+        voeg_toe("HTTP_BLOKKADE", f"HTTP {status}: {HTTP_STATUS_VERDACHT[status]}", "KRITIEK", f"URL: {url}")
 
-    # Verdachte URL-patronen
     for patroon, beschrijving in VERDACHTE_URLS:
         if patroon.search(url):
             voeg_toe("VERDACHTE_URL", beschrijving, "HOOG", url)
@@ -364,58 +257,36 @@ def scan_tekst(tekst: str, url: str, methode: str, status: int,
     return gevonden
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# BESTANDSPARSERS
-# ─────────────────────────────────────────────────────────────────────────────
-
 def parse_har(pad: str) -> list:
-    """Parse een HAR-bestand en retourneer lijst van transacties."""
-    transacties = []
     with open(pad, "r", encoding="utf-8", errors="replace") as f:
         har = json.load(f)
-    entries = har.get("log", {}).get("entries", [])
-    for entry in entries:
+    transacties = []
+    for entry in har.get("log", {}).get("entries", []):
         req = entry.get("request", {})
         resp = entry.get("response", {})
-        url = req.get("url", "")
-        methode = req.get("method", "")
-        status = resp.get("status", 0)
-        tijdstempel = entry.get("startedDateTime", "")
-        # Respons body
         content = resp.get("content", {})
         tekst = content.get("text", "")
-        encoding = content.get("encoding", "")
-        if encoding == "base64" and tekst:
+        if content.get("encoding") == "base64" and tekst:
             tekst = decode_body(tekst, content.get("mimeType", ""))
-        # Request body
         req_body = req.get("postData", {}).get("text", "")
-        gecombineerd = tekst + "\n" + req_body
-        # Request/response headers
-        headers = " ".join(
-            f"{h['name']}: {h['value']}"
-            for h in resp.get("headers", []) + req.get("headers", [])
-        )
-        gecombineerd += "\n" + headers
-        transacties.append((url, methode, status, tijdstempel, gecombineerd))
+        headers = " ".join(f"{h['name']}: {h['value']}"
+                           for h in resp.get("headers", []) + req.get("headers", []))
+        gecombineerd = tekst + "\n" + req_body + "\n" + headers
+        transacties.append((req.get("url", ""), req.get("method", ""),
+                            resp.get("status", 0), entry.get("startedDateTime", ""), gecombineerd))
     return transacties
 
 
 def parse_proxymanlogv2(pad: str) -> list:
-    """
-    Parse Proxyman .proxymanlogv2 bestand.
-    Formaat: newline-delimited JSON-records of gzip-verpakt.
-    """
-    transacties = []
     with open(pad, "rb") as f:
         raw = f.read()
-    # Probeer gzip
     if raw[:2] == b'\x1f\x8b':
         try:
             raw = gzip.decompress(raw)
         except Exception:
             pass
     tekst = raw.decode("utf-8", errors="replace")
-    # NDJSON (newline-delimited JSON)
+    transacties = []
     for regel in tekst.splitlines():
         regel = regel.strip()
         if not regel:
@@ -428,7 +299,6 @@ def parse_proxymanlogv2(pad: str) -> list:
         methode = rec.get("method") or rec.get("request", {}).get("method", "")
         status = rec.get("statusCode") or rec.get("response", {}).get("statusCode", 0)
         tijdstempel = rec.get("timestamp") or rec.get("startTime", "")
-        # Body
         resp_body = rec.get("responseBody") or rec.get("response", {}).get("body", "")
         req_body = rec.get("requestBody") or rec.get("request", {}).get("body", "")
         if isinstance(resp_body, bytes):
@@ -436,7 +306,6 @@ def parse_proxymanlogv2(pad: str) -> list:
         if isinstance(req_body, bytes):
             req_body = decode_body(req_body)
         gecombineerd = str(resp_body) + "\n" + str(req_body)
-        # Headers
         resp_headers = rec.get("responseHeaders") or rec.get("response", {}).get("headers", {})
         req_headers = rec.get("requestHeaders") or rec.get("request", {}).get("headers", {})
         if isinstance(resp_headers, dict):
@@ -445,45 +314,29 @@ def parse_proxymanlogv2(pad: str) -> list:
             gecombineerd += "\n" + " ".join(f"{k}: {v}" for k, v in req_headers.items())
         transacties.append((url, methode, status, str(tijdstempel), gecombineerd))
     if not transacties:
-        # Fallback: probeer als één groot JSON-object
         try:
             data = json.loads(tekst)
             if isinstance(data, list):
                 for rec in data:
-                    url = rec.get("url", "")
-                    methode = rec.get("method", "")
-                    status = rec.get("statusCode", 0)
-                    tijdstempel = str(rec.get("timestamp", ""))
-                    gecombineerd = json.dumps(rec)
-                    transacties.append((url, methode, status, tijdstempel, gecombineerd))
+                    transacties.append((rec.get("url", ""), rec.get("method", ""),
+                                        rec.get("statusCode", 0), str(rec.get("timestamp", "")),
+                                        json.dumps(rec)))
         except Exception:
             pass
     return transacties
 
 
 def parse_json(pad: str) -> list:
-    """Parse algemeen JSON-netwerk-capture."""
     with open(pad, "r", encoding="utf-8", errors="replace") as f:
         data = json.load(f)
-    transacties = []
-    if isinstance(data, list):
-        records = data
-    elif isinstance(data, dict):
-        records = data.get("entries", data.get("requests", data.get("transactions", [data])))
-    else:
-        return []
-    for rec in records:
-        url = str(rec.get("url", rec.get("uri", "")))
-        methode = str(rec.get("method", ""))
-        status = int(rec.get("status", rec.get("statusCode", 0)))
-        tijdstempel = str(rec.get("timestamp", rec.get("time", "")))
-        gecombineerd = json.dumps(rec)
-        transacties.append((url, methode, status, tijdstempel, gecombineerd))
-    return transacties
+    records = data if isinstance(data, list) else data.get("entries", data.get("requests", data.get("transactions", [data])))
+    return [(str(r.get("url", r.get("uri", ""))), str(r.get("method", "")),
+             int(r.get("status", r.get("statusCode", 0))),
+             str(r.get("timestamp", r.get("time", ""))), json.dumps(r))
+            for r in records]
 
 
 def laad_capture(pad: str) -> list:
-    """Laad een capture-bestand op basis van extensie."""
     ext = pathlib.Path(pad).suffix.lower()
     print(f"[+] Bestand laden: {pad} (formaat: {ext or 'onbekend'})")
     if ext == ".har":
@@ -492,36 +345,26 @@ def laad_capture(pad: str) -> list:
         return parse_proxymanlogv2(pad)
     elif ext == ".json":
         return parse_json(pad)
-    else:
-        # Probeer alle parsers
-        for parser in (parse_proxymanlogv2, parse_har, parse_json):
-            try:
-                result = parser(pad)
-                if result:
-                    return result
-            except Exception:
-                continue
-        raise ValueError(f"Bestandsformaat niet herkend: {pad}")
+    for parser in (parse_proxymanlogv2, parse_har, parse_json):
+        try:
+            result = parser(pad)
+            if result:
+                return result
+        except Exception:
+            continue
+    raise ValueError(f"Bestandsformaat niet herkend: {pad}")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HOOFDPROGRAMMA
-# ─────────────────────────────────────────────────────────────────────────────
 
 def analyseer(pad: str, output_map: str):
-    """Analyseer een capture-bestand en schrijf forensisch rapport."""
     start = datetime.datetime.now(datetime.timezone.utc)
     transacties = laad_capture(pad)
     print(f"[+] {len(transacties)} transacties geladen")
 
-    alle_bevindingen: list[Bevinding] = []
+    alle_bevindingen = []
     for url, methode, status, tijdstempel, tekst in transacties:
-        bevs = scan_tekst(tekst, url, methode, status, tijdstempel)
-        alle_bevindingen.extend(bevs)
-
+        alle_bevindingen.extend(scan_tekst(tekst, url, methode, status, tijdstempel))
     alle_bevindingen.sort()
 
-    # Deduplicate op hash
     gezien = set()
     uniek = []
     for b in alle_bevindingen:
@@ -531,41 +374,31 @@ def analyseer(pad: str, output_map: str):
 
     print(f"[+] {len(alle_bevindingen)} bevindingen gevonden ({len(uniek)} uniek)")
 
-    # Output map
     os.makedirs(output_map, exist_ok=True)
     ts = start.strftime("%Y%m%d_%H%M%S")
     invoer_hash = sha256(pathlib.Path(pad).read_bytes())
 
-    # JSON rapport
-    rapport = {
-        "meta": {
-            "dossier": "Grothe — C/15/376914 + HvD 260153",
-            "invoerbestand": pad,
-            "invoer_sha256": invoer_hash,
-            "analyse_tijdstip": start.isoformat(),
-            "totaal_transacties": len(transacties),
-            "totaal_bevindingen": len(uniek),
-        },
-        "samenvatting": {},
-        "bevindingen": [b.als_dict() for b in uniek],
-    }
-
-    # Samenvatting per categorie
-    categorie_teller: dict[str, int] = {}
-    ernst_teller: dict[str, int] = {}
+    categorie_teller: dict = {}
+    ernst_teller: dict = {}
     for b in uniek:
         categorie_teller[b.categorie] = categorie_teller.get(b.categorie, 0) + 1
         ernst_teller[b.ernst] = ernst_teller.get(b.ernst, 0) + 1
-    rapport["samenvatting"] = {
-        "per_categorie": categorie_teller,
-        "per_ernst": ernst_teller,
+
+    rapport = {
+        "meta": {
+            "dossier": "Grothe — C/15/376914 + HvD 260153",
+            "invoerbestand": pad, "invoer_sha256": invoer_hash,
+            "analyse_tijdstip": start.isoformat(),
+            "totaal_transacties": len(transacties), "totaal_bevindingen": len(uniek),
+        },
+        "samenvatting": {"per_categorie": categorie_teller, "per_ernst": ernst_teller},
+        "bevindingen": [b.als_dict() for b in uniek],
     }
 
     json_pad = os.path.join(output_map, f"forensisch_rapport_{ts}.json")
     with open(json_pad, "w", encoding="utf-8") as f:
         json.dump(rapport, f, ensure_ascii=False, indent=2)
 
-    # Plaintext rapport
     txt_pad = os.path.join(output_map, f"forensisch_rapport_{ts}.txt")
     with open(txt_pad, "w", encoding="utf-8") as f:
         f.write("=" * 78 + "\n")
@@ -576,7 +409,6 @@ def analyseer(pad: str, output_map: str):
         f.write(f"Transacties geanalyseerd: {len(transacties)}\n")
         f.write(f"Bevindingen (uniek): {len(uniek)}\n")
         f.write("=" * 78 + "\n\n")
-
         f.write("SAMENVATTING\n" + "-" * 40 + "\n")
         for ernst in ("KRITIEK", "HOOG", "MEDIUM", "LAAG"):
             n = ernst_teller.get(ernst, 0)
@@ -585,9 +417,7 @@ def analyseer(pad: str, output_map: str):
         f.write("\nPer categorie:\n")
         for cat, n in sorted(categorie_teller.items(), key=lambda x: -x[1]):
             f.write(f"  {cat:30s}: {n}\n")
-        f.write("\n")
-
-        f.write("BEVINDINGEN (gesorteerd op ernst)\n" + "-" * 40 + "\n\n")
+        f.write("\nBEVINDINGEN (gesorteerd op ernst)\n" + "-" * 40 + "\n\n")
         for i, b in enumerate(uniek, 1):
             f.write(f"[{i:03d}] [{b.ernst}] {b.categorie}\n")
             f.write(f"      {b.omschrijving}\n")
@@ -597,11 +427,9 @@ def analyseer(pad: str, output_map: str):
                 f.write(f"      HTTP: {b.methode} {b.status}\n")
             f.write(f"      SHA-256: {b.hash_waarde}\n")
             if b.context:
-                ctx = b.context.replace("\n", " ")[:200]
-                f.write(f"      Context: ...{ctx}...\n")
+                f.write(f"      Context: ...{b.context.replace(chr(10), ' ')[:200]}...\n")
             f.write("\n")
 
-    # Evidence hash-log
     hash_pad = os.path.join(output_map, f"evidence_hashes_{ts}.txt")
     with open(hash_pad, "w", encoding="utf-8") as f:
         f.write(f"# Evidence hash-log — {start.isoformat()}\n")
@@ -614,7 +442,6 @@ def analyseer(pad: str, output_map: str):
     print(f"    TXT:    {os.path.basename(txt_pad)}")
     print(f"    Hashes: {os.path.basename(hash_pad)}")
 
-    # Samenvatting naar stdout
     kritiek = ernst_teller.get("KRITIEK", 0)
     hoog = ernst_teller.get("HOOG", 0)
     if kritiek:
@@ -630,9 +457,7 @@ def analyseer(pad: str, output_map: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Forensisch analyzer voor Storm Sniffer / Proxyman captures — Dossier Grothe"
-    )
+    parser = argparse.ArgumentParser(description="Forensisch analyzer voor Storm Sniffer / Proxyman captures")
     parser.add_argument("invoer", help="Capture-bestand (.proxymanlogv2, .har, .json)")
     parser.add_argument("--output", "-o", default="forensisch_output",
                         help="Output map voor rapporten (default: forensisch_output/)")
