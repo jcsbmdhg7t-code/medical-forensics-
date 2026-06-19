@@ -43,11 +43,35 @@ function forensischInject() {
         [/lucy\.css|lucy_colors/i,                  'NB-71 lucy.css'],
         [/\$lastn/i,                                'NB-109 FHIR $lastn'],
         [/Brijder|Parnassia.*Indigo|Indigo.*Parnassia/i, 'NB-113 Parnassia/Brijder'],
+        [/ChipSoft\.PlatformServices/i,                 'KRITIEK NB-177 ChipSoft HiX API blootgesteld'],
+        [/GetCurrentPatientAndUserObject/i,             'KRITIEK NB-177 ChipSoft patientobject gelekt'],
+        [/PATIENT_PATIENT.*2001702222|2001702222.*PATIENT_PATIENT/, 'KRITIEK NB-177 ChipSoft patient-ID Grothe'],
+        [/DYN_CURRENT_USER/i,                           'NB-177 ChipSoft session token type'],
+        [/ComponentRequest|ComponentDownload/i,         'NB-177 ChipSoft component API'],
+        [/account_id\s*[:=]\s*763232/i,                'KRITIEK NB-53 VWO tracker account_id=763232'],
+        [/hide_element.*opacity\s*:\s*0/i,             'KRITIEK NB-53 VWO body opacity:0 aanval'],
+        [/vwo_uuid/i,                                   'NB-178 VWO tracking na weigering'],
+        [/WoundListSection.*display.*none|display.*none.*WoundListSection/i, 'NB-12 CSS verberging wondensectie'],
+        [/SharingHub.*display.*none|display.*none.*SharingHub/i, 'NB-12 CSS verberging gezondheidsdelen'],
+        [/sharerecord.*display.*none|display.*none.*sharerecord/i, 'NB-12 CSS verberging dossier delen'],
+        [/documents.*display.*none|mode=documents.*display.*none/i, 'NB-12 CSS verberging documentenlink'],
+        [/datadog.*browser-intake|browser-intake.*datadog/i, 'NB-69 Datadog RUM telemetrie'],
+        [/o1158394\.ingest\..*sentry/i,                'NB-69 Sentry iOS crash rapportage'],
+        [/centramed\.nl/i,                              'NB-179 Centramed aansprakelijkheidsverzekeraar'],
+        [/GetPatientDocuments/i,                        'NB-177 ChipSoft patientdocumenten opgehaald'],
+        [/GetPathologyResults/i,                        'NB-177 ChipSoft pathologieresultaten'],
+        [/GetRadiologyProcedures/i,                     'NB-177 ChipSoft radiologieprocedures'],
+        [/GetDcrRegistrations/i,                        'NB-177 ChipSoft DCR toestemmingen'],
+        [/HAAS_DOCUMENT/i,                              'NB-177 ChipSoft HAAS document type'],
+        [/DigiDClusterHybrid/i,                         'NB-177 ChipSoft DigiD authenticatie flow'],
+        [/mijn\.dijklander\.nl/i,                       'NB-177 Dijklander HiX portaal actief'],
+        [/2001702222/,                                   'KRITIEK NB-177 ChipSoft patient-ID Grothe'],
     ];
 
     var AUDIT_URLS = [
         'GetClinicianAccessLogSettings', 'GetClinicianAccessLogEntries',
         'GetThirdPartyAccessLogEntries', 'access-logs', 'AuditTrail',
+        'GetClinicianAccessLog', 'auditlog', 'audit-trail',
     ];
 
     var gevonden = [];
