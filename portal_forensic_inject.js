@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Forensisch Monitor (Grothe C/15/376914)
 // @namespace    grothe-forensisch
-// @version      9.0
-// @description  Detecteert verborgen audit/CSS/SNOMED/Epic-patronen in zorgportaal-responses
+// @version      10.0
+// @description  Detecteert verborgen audit/CSS/SNOMED/Epic/ChipSoft/VWO-patronen in zorgportaal-responses
 // @match        *://*spaarnegasthuis*/*
 // @match        *://*dijklander*/*
 // @match        *://*mychart*/*
@@ -85,6 +85,7 @@ var CFG = {
     auditTrailEndpoints: [
         'GetClinicianAccessLogSettings', 'GetClinicianAccessLogEntries',
         'GetThirdPartyAccessLogEntries', 'access-logs', 'AccessLog', 'AuditTrail',
+        'GetClinicianAccessLog', 'auditlog', 'audit-trail',
     ],
     forensischePatronen: [
         { p: /F19\.1|neusdruppelmisbruik/i,               l: 'F19.1 neusdruppelmisbruik (NB-01)',              ernst: 'KRITIEK' },
@@ -127,6 +128,28 @@ var CFG = {
         { p: /\$lastn/i,                                   l: 'FHIR $lastn re-replay (NB-109)',                ernst: 'HOOG'    },
         { p: /Brijder|Parnassia.*Indigo|Indigo.*Parnassia/i, l: 'Parnassia/Brijder nooit in behandeling (NB-113)', ernst: 'KRITIEK' },
         { p: /GTM-PGPCH2T/i,                               l: 'GTM tag GTM-PGPCH2T (NB-85)',                   ernst: 'HOOG'    },
+        { p: /ChipSoft\.PlatformServices/i,                l: 'KRITIEK ChipSoft HiX API blootgesteld (NB-177)',  ernst: 'KRITIEK' },
+        { p: /GetCurrentPatientAndUserObject/i,            l: 'KRITIEK ChipSoft patientobject gelekt (NB-177)', ernst: 'KRITIEK' },
+        { p: /PATIENT_PATIENT.*2001702222|2001702222.*PATIENT_PATIENT/, l: 'KRITIEK ChipSoft patient-ID Grothe in response (NB-177)', ernst: 'KRITIEK' },
+        { p: /2001702222/,                                 l: 'KRITIEK ChipSoft patient-ID Grothe (NB-177)',     ernst: 'KRITIEK' },
+        { p: /DYN_CURRENT_USER/i,                          l: 'ChipSoft HiX session token type (NB-177)',        ernst: 'HOOG'    },
+        { p: /ComponentRequest|ComponentDownload/i,        l: 'ChipSoft HiX component API (NB-177)',             ernst: 'HOOG'    },
+        { p: /GetPatientDocuments/i,                       l: 'ChipSoft patientdocumenten opgehaald (NB-177)',   ernst: 'HOOG'    },
+        { p: /GetPathologyResults/i,                       l: 'ChipSoft pathologieresultaten (NB-177)',          ernst: 'HOOG'    },
+        { p: /GetRadiologyProcedures/i,                    l: 'ChipSoft radiologieprocedures (NB-177)',          ernst: 'HOOG'    },
+        { p: /GetDcrRegistrations/i,                       l: 'ChipSoft DCR toestemmingen (NB-177)',             ernst: 'HOOG'    },
+        { p: /HAAS_DOCUMENT/i,                             l: 'ChipSoft HAAS document type (NB-177)',            ernst: 'HOOG'    },
+        { p: /DigiDClusterHybrid/i,                        l: 'ChipSoft DigiD authenticatie flow (NB-177)',      ernst: 'HOOG'    },
+        { p: /mijn\.dijklander\.nl/i,                      l: 'Dijklander HiX portaal actief (NB-177)',          ernst: 'HOOG'    },
+        { p: /account_id\s*[:|=]\s*763232/i,               l: 'KRITIEK VWO tracker account_id=763232 (NB-53)',   ernst: 'KRITIEK' },
+        { p: /hide_element.*opacity\s*:\s*0|body.*opacity.*0.*important/i, l: 'KRITIEK VWO body opacity:0 aanval (NB-53)', ernst: 'KRITIEK' },
+        { p: /vwo_uuid/i,                                  l: 'VWO UUID tracking na weigering (NB-178)',         ernst: 'HOOG'    },
+        { p: /WoundListSection.*display.*none|display.*none.*WoundListSection/i, l: 'CSS verberging wondensectie (NB-12)', ernst: 'KRITIEK' },
+        { p: /SharingHub.*display.*none|display.*none.*SharingHub/i,             l: 'CSS verberging gezondheidsdelen (NB-12)', ernst: 'KRITIEK' },
+        { p: /sharerecord.*display.*none|display.*none.*sharerecord/i,           l: 'CSS verberging dossier delen (NB-12)', ernst: 'KRITIEK' },
+        { p: /documents.*display.*none|mode=documents.*display.*none/i,          l: 'CSS verberging documentenlink (NB-12)', ernst: 'KRITIEK' },
+        { p: /datadog.*browser-intake|browser-intake.*datadoghq/i,               l: 'Datadog RUM telemetrie (NB-69)',        ernst: 'HOOG'    },
+        { p: /centramed\.nl/i,                             l: 'Centramed aansprakelijkheidsverzekeraar (NB-179)', ernst: 'HOOG'   },
     ],
 };
 
@@ -348,7 +371,7 @@ function downloadEvidence() {
     var ts = new Date().toISOString().replace(/[:.]/g, '-');
     var data = {
         meta: {
-            dossier: DOSSIER, versie: '9.0',
+            dossier: DOSSIER, versie: '10.0',
             exportTijdstip: new Date().toISOString(),
             url: window.location.href, userAgent: navigator.userAgent,
             totaalBevindingen: evidenceLog.length,
@@ -393,6 +416,6 @@ if (document.readyState === 'loading') {
     voegExportKnopToe();
 }
 
-console.log(LOG_PREFIX + ' Forensisch Monitor v9.0 actief | Dossier: ' + DOSSIER + ' | URL: ' + window.location.href);
+console.log(LOG_PREFIX + ' Forensisch Monitor v10.0 actief | Dossier: ' + DOSSIER + ' | URL: ' + window.location.href);
 
 })();
