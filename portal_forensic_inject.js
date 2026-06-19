@@ -1,434 +1,365 @@
+// ==UserScript==
+// @name         Forensisch Monitor (Grothe C/15/376914)
+// @namespace    grothe-forensisch
+// @version      9.0
+// @description  Detecteert verborgen audit/CSS/SNOMED/Epic-patronen in zorgportaal-responses
+// @match        *://*spaarnegasthuis*/*
+// @match        *://*mychart*/*
+// @match        *://*epic*/*
+// @match        *://mijn.dijklander*/*
+// @match        *://*dijklander*/*
+// @match        *://*gezondheidsmeter*/*
+// @match        *://*zorgplatform*/*
+// @match        *://*uwzorgonline*/*
+// @match        *://*pgo*/*
+// @match        *://*medmij*/*
+// @match        *://*mitz*/*
+// @match        *://*mijngezondheid*/*
+// @match        *://*medgemak*/*
+// @match        *://*ivido*/*
+// @match        *://*quli*/*
+// @match        *://*spreekuur*/*
+// @match        *://*parnassia*/*
+// @match        *://*brijder*/*
+// @match        *://*psyq*/*
+// @match        *://*ggz*/*
+// @match        *://*zorggroep*/*
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
 (function () {
-    'use strict';
+'use strict';
 
-    const VERSIE = '1.0';
-    const DOSSIER = 'Grothe C/15/376914';
-    const LOG_PREFIX = '[FORENSISCH]';
+var DOSSIER = 'Grothe C/15/376914';
+var LOG_PREFIX = '[FORENSISCH]';
 
-    const CSS_VERBERGING_KLASSEN = [
-        'hiddenProvider', 'CEDataExternal', 'SRonly', 'CEAuth', 'CENoAuth', 'noView', 'hidden-data', 'sr-only',
-    ];
+var CSS_VERBERGING_KLASSEN = [
+    'hiddenProvider', 'CEDataExternal', 'SRonly', 'CEAuth', 'CENoAuth',
+    'noView', 'hidden-data', 'sr-only',
+];
 
-    const VERDACHTE_INLINE_STIJLEN = [
-        { prop: 'display',     waarde: 'none',    ernst: 'KRITIEK', nb: 'NB-12/53' },
-        { prop: 'visibility',  waarde: 'hidden',  ernst: 'HOOG',    nb: 'NB-12' },
-        { prop: 'fontSize',    waarde: '0px',     ernst: 'HOOG',    nb: 'NB-53' },
-        { prop: 'left',        max: -5000,         ernst: 'HOOG',    nb: 'NB-53 SRonly' },
-        { prop: 'color',       waarde: '#ffffff',  ernst: 'MEDIUM',  nb: 'NB-12 wit-op-wit' },
-        { prop: 'opacity',     waarde: '0',        ernst: 'MEDIUM',  nb: 'NB-12' },
-    ];
+var VERDACHTE_INLINE_STIJLEN = [
+    { prop: 'display',    waarde: 'none',    ernst: 'KRITIEK', nb: 'NB-12/53' },
+    { prop: 'visibility', waarde: 'hidden',  ernst: 'HOOG',    nb: 'NB-12' },
+    { prop: 'fontSize',   waarde: '0px',     ernst: 'HOOG',    nb: 'NB-53' },
+    { prop: 'left',       max: -5000,        ernst: 'HOOG',    nb: 'NB-53 SRonly' },
+    { prop: 'color',      waarde: '#ffffff', ernst: 'MEDIUM',  nb: 'NB-12 wit-op-wit' },
+    { prop: 'opacity',    waarde: '0',       ernst: 'MEDIUM',  nb: 'NB-12' },
+];
 
-    const FEATURE_FLAG_PATRONEN = [
-        { patroon: /DISABLEMYCONDITIONS/i,                    ernst: 'KRITIEK', nb: 'NB-11',     omschrijving: 'DISABLEMYCONDITIONS actief' },
-        { patroon: /DISABLEPLANOFCARE/i,                      ernst: 'KRITIEK', nb: 'NB-11',     omschrijving: 'DISABLEPLANOFCARE actief' },
-        { patroon: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i,       ernst: 'HOOG',    nb: 'NB-163',    omschrijving: 'Audit trail feature flag' },
-        { patroon: /AUTOGENERATESIGNATURE/i,                  ernst: 'KRITIEK', nb: 'NB-82',     omschrijving: 'Auto-handtekening actief' },
-        { patroon: /SEXUALACTIVITYHXQNR/i,                    ernst: 'HOOG',    nb: 'NB-83',     omschrijving: 'Seksuele anamnese module' },
-        { patroon: /SUBSTANCEHXQNR/i,                         ernst: 'KRITIEK', nb: 'NB-108',    omschrijving: 'SUBSTANCEHXQNR module (al-Mousawi 02-10-2024)' },
-        { patroon: /AUTOSYNCRECEIVEFORPERSONALINFORMATION/i,  ernst: 'HOOG',    nb: 'NB-115',    omschrijving: 'AutoSync extern bronsysteem' },
-        { patroon: /ExternalJump|LogExternalJumpAudit/i,      ernst: 'MEDIUM',  nb: 'NB-68',     omschrijving: 'ExternalJump tracking' },
-        { patroon: /noView\s*:\s*true/i,                      ernst: 'KRITIEK', nb: 'NB-99',     omschrijving: 'noView:true — data verborgen' },
-        { patroon: /GUARD\b/i,                                ernst: 'HOOG',    nb: 'NB-56',     omschrijving: 'GUARD blok — CDA access control' },
-        { patroon: /override\.css/i,                          ernst: 'KRITIEK', nb: 'NB-53/89',  omschrijving: 'override.css referentie (MRK/JKE)' },
-        { patroon: /lucy\.css|lucy_colors/i,                  ernst: 'MEDIUM',  nb: 'NB-71',     omschrijving: 'lucy.css renderingslaag' },
-        { patroon: /printBlackText/i,                         ernst: 'MEDIUM',  nb: 'NB-84',     omschrijving: 'printBlackText — alarmkleuren geneutraliseerd' },
-        { patroon: /hoppinger\.com|spaarne-rebuild\.productie/i, ernst: 'KRITIEK', nb: 'NB-114', omschrijving: 'Hoppinger.com in productie (supply chain lek)' },
-        { patroon: /FocusZorgTeam.*test\.authorization/i,     ernst: 'HOOG',    nb: 'NB-91',     omschrijving: 'FocusZorgTeam test-server in productie' },
-    ];
-
-    const TRACKER_PATRONEN = [
-        { patroon: /hotjar|hjid=/i,                           ernst: 'HOOG',    nb: 'NB-53/79',  omschrijving: 'Hotjar tracker' },
-        { patroon: /recording_capture_keystrokes\s*=\s*true/i, ernst: 'KRITIEK', nb: 'NB-53',    omschrijving: 'Hotjar keystroke recording ACTIEF' },
-        { patroon: /sentry\.io/i,                             ernst: 'HOOG',    nb: 'NB-69',     omschrijving: 'Sentry.io telemetrie (VS, Schrems II)' },
-        { patroon: /pendo\.io/i,                              ernst: 'HOOG',    nb: 'NB-79',     omschrijving: 'Pendo.io tracker' },
-        { patroon: /wingify|vwo\.com/i,                       ernst: 'HOOG',    nb: 'NB-79/85',  omschrijving: 'VWO/Wingify India content-injectie' },
-        { patroon: /qualtrics\.com/i,                         ernst: 'HOOG',    nb: 'NB-79',     omschrijving: 'Qualtrics/SAP tracker' },
-        { patroon: /segment\.io|segment\.com/i,               ernst: 'HOOG',    nb: 'NB-79',     omschrijving: 'Segment.io tracker' },
-        { patroon: /kameleoon/i,                              ernst: 'HOOG',    nb: 'NB-79',     omschrijving: 'Kameleoon tracker' },
-        { patroon: /GTM-PGPCH2T/i,                            ernst: 'HOOG',    nb: 'NB-85',     omschrijving: 'GTM tag GTM-PGPCH2T' },
-        { patroon: /SESSION_ID\s*[=:]\s*[A-F0-9]{20,}/i,     ernst: 'KRITIEK', nb: 'NB-79',     omschrijving: 'Session ID blootgesteld via tracker' },
-    ];
-
-    const DIAGNOSE_PATRONEN = [
-        { patroon: /F19\.1|neusdruppelmisbruik/i,  ernst: 'KRITIEK', nb: 'NB-01/116', omschrijving: 'F19.1 neusdruppelmisbruik (gefabriceerd)' },
-        { patroon: /361055000/i,                   ernst: 'KRITIEK', nb: 'NB-03',     omschrijving: 'SNOMED 361055000 nasal spray misuse' },
-        { patroon: /228273003/i,                   ernst: 'KRITIEK', nb: 'NB-23/113', omschrijving: 'SNOMED 228273003 drug misuse' },
-        { patroon: /nullFlavor="UNK"/i,            ernst: 'HOOG',    nb: 'NB-18/47',  omschrijving: 'CDA nullFlavor=UNK (anonieme auteur)' },
-        { patroon: /extension="999999"/i,          ernst: 'KRITIEK', nb: 'NB-18',     omschrijving: 'Epic ext=999999 anonymous actor' },
-        { patroon: /extension="373282512"/i,       ernst: 'KRITIEK', nb: 'NB-05',     omschrijving: 'ext=373282512 A. al-Mousawi' },
-        { patroon: /Epic@spaarnegasthuis\.nl/i,    ernst: 'KRITIEK', nb: 'NB-05',     omschrijving: 'Epic admin organisatie-email' },
-        { patroon: /HANDMATIGE_EDIT_BOM/i,         ernst: 'KRITIEK', nb: 'NB-13',     omschrijving: 'Post-creatie bytemanipulatieflag' },
-    ];
-
-    const AUDIT_TRAIL_URLS = [
+var CFG = {
+    auditTrailEndpoints: [
         'GetClinicianAccessLogSettings', 'GetClinicianAccessLogEntries',
-        'GetThirdPartyAccessLogEntries', 'access-logs', 'audit',
-    ];
+        'GetThirdPartyAccessLogEntries', 'access-logs', 'AccessLog', 'AuditTrail',
+    ],
+    forensischePatronen: [
+        { p: /F19\.1|neusdruppelmisbruik/i,               l: 'F19.1 neusdruppelmisbruik (NB-01)',              ernst: 'KRITIEK' },
+        { p: /361055000/,                                  l: 'SNOMED 361055000 nasal spray misuse (NB-03)',    ernst: 'KRITIEK' },
+        { p: /228273003/,                                  l: 'SNOMED 228273003 drug misuse (NB-23)',           ernst: 'KRITIEK' },
+        { p: /228366006/,                                  l: 'SNOMED 228366006 stimulant misuse',             ernst: 'HOOG'    },
+        { p: /nullFlavor="UNK"/i,                          l: 'CDA nullFlavor=UNK anonieme auteur (NB-18)',    ernst: 'HOOG'    },
+        { p: /extension="999999"/i,                        l: 'Epic ext=999999 anonymous (NB-18)',             ernst: 'KRITIEK' },
+        { p: /extension="373282512"/i,                     l: 'A. al-Mousawi ext (NB-05)',                     ernst: 'KRITIEK' },
+        { p: /extension="51504662"|extension="84107660"/i, l: 'N.M. Nota ext (NB-04)',                         ernst: 'KRITIEK' },
+        { p: /Epic@spaarnegasthuis\.nl/i,                  l: 'Epic admin email (NB-05)',                      ernst: 'KRITIEK' },
+        { p: /DISABLEMYCONDITIONS/i,                       l: 'Feature flag DISABLEMYCONDITIONS (NB-11)',      ernst: 'KRITIEK' },
+        { p: /DISABLEPLANOFCARE/i,                         l: 'Feature flag DISABLEPLANOFCARE (NB-11)',        ernst: 'KRITIEK' },
+        { p: /SUBSTANCEHXQNR/i,                            l: 'SUBSTANCEHXQNR module (NB-108)',                ernst: 'KRITIEK' },
+        { p: /AUTOGENERATESIGNATURE/i,                     l: 'AUTOGENERATESIGNATURE (NB-82)',                 ernst: 'KRITIEK' },
+        { p: /SEXUALACTIVITYHXQNR/i,                       l: 'Seksuele anamnese module (NB-83)',              ernst: 'HOOG'    },
+        { p: /AUTOSYNCRECEIVEFORPERSONALINFORMATION/i,     l: 'AutoSync extern bronsysteem (NB-115)',          ernst: 'HOOG'    },
+        { p: /ExternalJump|LogExternalJumpAudit/i,         l: 'ExternalJump tracking (NB-68)',                 ernst: 'MEDIUM'  },
+        { p: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i,          l: 'Audit trail feature flag (NB-163)',             ernst: 'HOOG'    },
+        { p: /GUARD\b/,                                    l: 'GUARD blok CDA (NB-56)',                        ernst: 'HOOG'    },
+        { p: /noView\s*:\s*true/i,                         l: 'noView:true (NB-99)',                           ernst: 'KRITIEK' },
+        { p: /recording_capture_keystrokes=true/i,         l: 'Hotjar keystroke capture ACTIEF (NB-53)',       ernst: 'KRITIEK' },
+        { p: /spaarne-rebuild\.productie\.hoppinger/i,     l: 'Hoppinger supply chain (NB-114)',               ernst: 'KRITIEK' },
+        { p: /hoppinger\.com/i,                            l: 'Hoppinger.com (NB-114)',                        ernst: 'KRITIEK' },
+        { p: /override\.css/i,                             l: 'override.css referentie (NB-53/89)',            ernst: 'KRITIEK' },
+        { p: /hiddenProvider|CEDataExternal/i,             l: 'CSS verberging klasse (NB-12)',                 ernst: 'KRITIEK' },
+        { p: /HANDMATIGE_EDIT_BOM/i,                       l: 'Bytemanipulatieflag (NB-13)',                   ernst: 'KRITIEK' },
+        { p: /20260110033455/,                             l: 'KRITIEK NACHT-TIMESTAMP 10-01-2026 (NB-166)',   ernst: 'KRITIEK' },
+        { p: /transactie.{0,10}77832/i,                    l: 'Transactie-ID 77832 SNOMED SUCCESS (NB-23)',    ernst: 'KRITIEK' },
+        { p: /215672185/,                                  l: 'BSN Grothe in response body',                  ernst: 'HOOG'    },
+        { p: /0133033170/,                                 l: 'MDN Grothe in response body',                  ernst: 'HOOG'    },
+        { p: /DE36B70A/i,                                  l: 'Sentry device ID DE36B70A (NB-69)',             ernst: 'HOOG'    },
+        { p: /hotjar\.com|hjid=/i,                         l: 'Hotjar tracker (NB-79)',                        ernst: 'HOOG'    },
+        { p: /sentry\.io/i,                                l: 'Sentry.io telemetrie (NB-69)',                  ernst: 'HOOG'    },
+        { p: /pendo\.io/i,                                 l: 'Pendo.io tracker (NB-79)',                      ernst: 'HOOG'    },
+        { p: /wingify|vwo\.com/i,                          l: 'VWO/Wingify India content-injectie (NB-85)',    ernst: 'HOOG'    },
+        { p: /FocusZorgTeam.*test\.authorization/i,        l: 'FocusZorgTeam test-server productie (NB-91)',   ernst: 'HOOG'    },
+        { p: /printBlackText/i,                            l: 'printBlackText alarmkleuren (NB-84)',           ernst: 'MEDIUM'  },
+        { p: /lucy\.css|lucy_colors/i,                     l: 'lucy.css renderingslaag (NB-71)',               ernst: 'MEDIUM'  },
+        { p: /\$lastn/i,                                   l: 'FHIR $lastn re-replay (NB-109)',                ernst: 'HOOG'    },
+        { p: /Brijder|Parnassia.*Indigo|Indigo.*Parnassia/i, l: 'Parnassia/Brijder nooit in behandeling (NB-113)', ernst: 'KRITIEK' },
+        { p: /GTM-PGPCH2T/i,                               l: 'GTM tag GTM-PGPCH2T (NB-85)',                   ernst: 'HOOG'    },
+    ],
+};
 
-    const VERDACHTE_KNOP_TEKSTEN = [
-        /meer laden/i, /load more/i, /toon meer/i, /show all/i, /alle resultaten/i,
-    ];
+var VERDACHTE_KNOP_TEKSTEN = [
+    /meer laden/i, /load more/i, /toon meer/i, /show all/i, /alle resultaten/i,
+];
 
-    let meerLadenVerwijderdTeller = 0;
-    const MAX_MEER_LADEN_VERWIJDERINGEN = 9;
-    const evidenceLog = [];
-    let bevindingTeller = 0;
+var meerLadenTeller = 0;
+var evidenceLog = [];
+var bevindingTeller = 0;
 
-    async function sha256(tekst) {
-        const data = new TextEncoder().encode(tekst);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+async function sha256(tekst) {
+    var data = new TextEncoder().encode(tekst);
+    var hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer)).map(function (b) {
+        return b.toString(16).padStart(2, '0');
+    }).join('');
+}
+
+async function logBevinding(ernst, categorie, omschrijving, nb, context) {
+    context = context || '';
+    bevindingTeller++;
+    var tijdstempel = new Date().toISOString();
+    var hash = await sha256(omschrijving + '|' + nb + '|' + tijdstempel + '|' + context.slice(0, 200));
+    var bevinding = {
+        nr: bevindingTeller, ernst: ernst, categorie: categorie,
+        omschrijving: omschrijving, nb: nb,
+        context: context.slice(0, 500), tijdstempel: tijdstempel,
+        url: window.location.href, sha256: hash,
+    };
+    evidenceLog.push(bevinding);
+    var prefix = { KRITIEK: '[!!]', HOOG: '[!]', MEDIUM: '[~]', INFO: '[i]' }[ernst] || '[?]';
+    console.log(prefix + ' ' + LOG_PREFIX + '[' + ernst + '] ' + categorie + ': ' + omschrijving);
+    console.log('    NB: ' + nb + ' | SHA256: ' + hash);
+    if (context) console.log('    -> ' + context.slice(0, 200));
+    if (ernst === 'KRITIEK') toonMarker(omschrijving, nb);
+    return bevinding;
+}
+
+function toonMarker(tekst, nb) {
+    var container = document.getElementById('fg-marker-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'fg-marker-container';
+        container.style.cssText = 'position:fixed;top:10px;right:10px;z-index:2147483647;' +
+            'display:flex;flex-direction:column;gap:4px;max-width:400px;font-family:monospace';
+        if (document.body) document.body.appendChild(container);
     }
+    var marker = document.createElement('div');
+    marker.style.cssText = 'background:#cc0000;color:#fff;padding:6px 10px;border-radius:4px;' +
+        'font-size:11px;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,.5)';
+    marker.textContent = '[!!] ' + nb + ': ' + tekst.slice(0, 80);
+    container.appendChild(marker);
+    setTimeout(function () { marker.remove(); }, 18000);
+}
 
-    async function logBevinding(ernst, categorie, omschrijving, nb, context = '') {
-        bevindingTeller++;
-        const tijdstempel = new Date().toISOString();
-        const hash = await sha256(`${omschrijving}|${nb}|${tijdstempel}|${context.slice(0, 200)}`);
-        const bevinding = {
-            nr: bevindingTeller, ernst, categorie, omschrijving, nb,
-            context: context.slice(0, 500), tijdstempel,
-            url: window.location.href, sha256: hash,
-        };
-        evidenceLog.push(bevinding);
-        const kleur = { KRITIEK: '#ff4444', HOOG: '#ff8800', MEDIUM: '#ffcc00', LAAG: '#88cc00' }[ernst] || '#aaaaaa';
-        console.log(
-            `%c${LOG_PREFIX} [${ernst}] ${categorie}`, `color:${kleur};font-weight:bold;`,
-            `\n  ${omschrijving}`, `\n  NB: ${nb}`, `\n  SHA256: ${hash}`,
-            context ? `\n  Context: ${context.slice(0, 200)}` : ''
-        );
-        if (ernst === 'KRITIEK') toonKrietiekMarker(omschrijving, nb);
-        return bevinding;
+function isAudit(url) {
+    for (var i = 0; i < CFG.auditTrailEndpoints.length; i++) {
+        if (url.indexOf(CFG.auditTrailEndpoints[i]) !== -1) return true;
     }
+    return false;
+}
 
-    function toonKrietiekMarker(tekst, nb) {
-        const bestaand = document.getElementById('forensisch-marker-container');
-        const container = bestaand || (() => {
-            const el = document.createElement('div');
-            el.id = 'forensisch-marker-container';
-            el.style.cssText = 'position:fixed;top:10px;right:10px;z-index:999999;display:flex;flex-direction:column;gap:4px;max-width:400px;font-family:monospace';
-            document.body.appendChild(el);
-            return el;
-        })();
-        const marker = document.createElement('div');
-        marker.style.cssText = 'background:#ff0000;color:white;padding:6px 10px;border-radius:4px;font-size:11px;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,0.5)';
-        marker.innerHTML = `⚠️ <b>${nb}</b>: ${tekst.slice(0, 80)}`;
-        container.appendChild(marker);
-        setTimeout(() => marker.remove(), 15000);
+function scan(body, url) {
+    if (!body || body.length < 4) return;
+    var su = url.split('?')[0];
+    var pats = CFG.forensischePatronen;
+    for (var i = 0; i < pats.length; i++) {
+        var m = body.match(pats[i].p);
+        if (m) {
+            var idx = body.search(pats[i].p);
+            var ctx = body.substring(Math.max(0, idx - 60), idx + 100).replace(/[\n\r]/g, ' ').trim();
+            var nb = (pats[i].l.match(/NB-[\d\/]+/) || ['NB-??'])[0];
+            logBevinding(pats[i].ernst, 'SCAN', pats[i].l, nb, 'URL: ' + su + ' | ...' + ctx + '...');
+        }
     }
+}
 
-    async function scanDOM() {
-        let verborgenTeller = 0;
-        let verborgenOnthuldTeller = 0;
+function stripCSSHiding(root) {
+    var sels = '.hiddenProvider,.CEDataExternal,.SRonly,.noView,.hidden-data,.sr-only,' +
+        '[style*="display:none"],[style*="display: none"],[style*="visibility:hidden"]';
+    var els;
+    try { els = root.querySelectorAll(sels); } catch (e) { return; }
+    els.forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('font-size', 'inherit', 'important');
+        el.removeAttribute('aria-hidden');
+        el.setAttribute('data-f', '1');
+        var tekst = el.textContent && el.textContent.trim();
+        if (tekst && tekst.length > 5) {
+            logBevinding('KRITIEK', 'CSS_VERBERGING_ONTHULD',
+                'Verborgen element onthuld: ' + tekst.slice(0, 100),
+                'NB-12/53', 'tag=' + el.tagName + ' class=' + (el.className || '').slice(0, 60));
+        }
+    });
+}
 
-        for (const el of document.querySelectorAll('*')) {
-            const stijl = window.getComputedStyle(el);
-            const tekst = el.textContent || '';
-            const isVerborgen = stijl.display === 'none' || stijl.visibility === 'hidden';
-
-            if (isVerborgen) verborgenTeller++;
-            if (isVerborgen && tekst.trim().length > 10) {
-                verborgenOnthuldTeller++;
-                if (verborgenOnthuldTeller <= 20) {
-                    await logBevinding('HOOG', 'VERBORGEN_ONTHULD',
-                        `Verborgen element met inhoud: ${tekst.trim().slice(0, 100)}`,
-                        'NB-62', `tag=${el.tagName} class=${el.className.slice(0, 80)}`);
+var domObserver = new MutationObserver(function (muts) {
+    muts.forEach(function (mut) {
+        mut.removedNodes.forEach(function (node) {
+            if (node.nodeType !== 1) return;
+            var tekst = node.textContent || '';
+            VERDACHTE_KNOP_TEKSTEN.forEach(function (pat) {
+                if (pat.test(tekst)) {
+                    meerLadenTeller++;
+                    logBevinding('KRITIEK', 'MEER_LADEN_VERWIJDERD',
+                        '"Meer laden"-knop verwijderd (teller: ' + meerLadenTeller + ')',
+                        'NB-99', 'tekst="' + tekst.trim().slice(0, 80) + '"');
                 }
-            }
-
-            for (const cls of CSS_VERBERGING_KLASSEN) {
-                if (el.classList.contains(cls)) {
-                    await logBevinding('KRITIEK', 'CSS_VERBERGING_KLASSE',
-                        `Element met klasse .${cls} gevonden`,
-                        'NB-12/53', `tag=${el.tagName} inhoud=${tekst.trim().slice(0, 100)}`);
+            });
+            for (var i = 0; i < CFG.forensischePatronen.length; i++) {
+                if (CFG.forensischePatronen[i].p.test(tekst)) {
+                    var nb2 = (CFG.forensischePatronen[i].l.match(/NB-[\d\/]+/) || ['NB-??'])[0];
+                    logBevinding('KRITIEK', 'DIAGNOSE_VERWIJDERD',
+                        'Inhoud met forensisch patroon verwijderd: ' + CFG.forensischePatronen[i].l,
+                        nb2, 'verwijderd="' + tekst.slice(0, 200) + '"');
                     break;
                 }
             }
-
-            for (const check of VERDACHTE_INLINE_STIJLEN) {
-                const waarde = el.style[check.prop];
-                if (check.waarde && waarde === check.waarde) {
-                    await logBevinding(check.ernst, 'INLINE_STIJL',
-                        `Inline ${check.prop}:${check.waarde} op element`,
-                        check.nb, `tag=${el.tagName} class=${el.className.slice(0, 60)}`);
-                }
-                if (check.max && parseInt(waarde) < check.max) {
-                    await logBevinding(check.ernst, 'INLINE_STIJL',
-                        `Inline ${check.prop}:${waarde} (off-screen, max ${check.max})`,
-                        check.nb, `tag=${el.tagName}`);
-                }
-            }
-
-            if (stijl.color === 'rgb(255, 255, 255)' && stijl.backgroundColor === 'rgb(255, 255, 255)') {
-                await logBevinding('KRITIEK', 'WIT_OP_WIT', 'Witte tekst op witte achtergrond (NB-12)',
-                    'NB-12', `tag=${el.tagName} tekst=${tekst.trim().slice(0, 80)}`);
-            }
-
-            if (el.tagName === 'BUTTON' || el.tagName === 'A' || el.getAttribute('role') === 'button') {
-                for (const patroon of VERDACHTE_KNOP_TEKSTEN) {
-                    if (patroon.test(tekst)) {
-                        await logBevinding('MEDIUM', 'MEER_LADEN_AANWEZIG',
-                            '"Meer laden"-knop gedetecteerd', 'NB-99', `tekst=${tekst.trim().slice(0, 80)}`);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (verborgenTeller > 100) {
-            await logBevinding('KRITIEK', 'MASSA_VERBERGING',
-                `${verborgenTeller} verborgen DOM-elementen gedetecteerd (NB-62: 4233)`,
-                'NB-62', `waarvan ${verborgenOnthuldTeller} met inhoud (NB-62: 885 VERBORGEN_ONTHULD)`);
-        }
-    }
-
-    async function scanScripts() {
-        for (const script of document.querySelectorAll('script')) {
-            const inhoud = script.textContent || '';
-            const src = script.src || '';
-
-            for (const check of FEATURE_FLAG_PATRONEN) {
-                const m = check.patroon.exec(inhoud) || check.patroon.exec(src);
-                if (m) await logBevinding(check.ernst, 'FEATURE_FLAG', check.omschrijving,
-                    check.nb, `match="${m[0]}" src="${src.slice(0, 100)}"`);
-            }
-            for (const check of TRACKER_PATRONEN) {
-                const m = check.patroon.exec(inhoud) || check.patroon.exec(src);
-                if (m) await logBevinding(check.ernst, 'TRACKER', check.omschrijving,
-                    check.nb, `src="${src.slice(0, 100)}"`);
-            }
-            for (const check of DIAGNOSE_PATRONEN) {
-                const m = check.patroon.exec(inhoud);
-                if (m) await logBevinding(check.ernst, 'DIAGNOSE_IN_SCRIPT', check.omschrijving,
-                    check.nb, `context="${inhoud.slice(Math.max(0, m.index - 50), m.index + 100)}"`);
-            }
-        }
-
-        for (const link of document.querySelectorAll('link[rel="stylesheet"]')) {
-            const href = link.href || '';
-            for (const check of FEATURE_FLAG_PATRONEN) {
-                if (check.patroon.test(href)) await logBevinding(check.ernst, 'STYLESHEET',
-                    check.omschrijving, check.nb, `href="${href}"`);
-            }
-        }
-    }
-
-    let traceInjectTeller = 0;
-    const observer = new MutationObserver(async (mutaties) => {
-        for (const mut of mutaties) {
-            for (const node of mut.removedNodes) {
-                if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                const tekst = node.textContent || '';
-                for (const patroon of VERDACHTE_KNOP_TEKSTEN) {
-                    if (patroon.test(tekst)) {
-                        meerLadenVerwijderdTeller++;
-                        await logBevinding('KRITIEK', 'MEER_LADEN_VERWIJDERD',
-                            `"Meer laden"-knop verwijderd uit DOM (teller: ${meerLadenVerwijderdTeller}/${MAX_MEER_LADEN_VERWIJDERINGEN})`,
-                            'NB-99', `tekst="${tekst.trim().slice(0, 80)}"`);
-                        break;
-                    }
-                }
-                for (const check of DIAGNOSE_PATRONEN) {
-                    if (check.patroon.test(tekst)) {
-                        await logBevinding('KRITIEK', 'DIAGNOSE_VERWIJDERD',
-                            `Diagnose-inhoud verwijderd uit DOM: ${check.omschrijving}`,
-                            check.nb, `verwijderd="${tekst.slice(0, 200)}"`);
-                        break;
-                    }
-                }
-            }
-
-            for (const node of mut.addedNodes) {
-                if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                const tekst = node.textContent || '';
-                const tagNaam = node.tagName || '';
-
-                if (tagNaam === 'SCRIPT') {
-                    traceInjectTeller++;
-                    const src = node.src || '';
-                    const inhoud = node.textContent || '';
-                    for (const check of FEATURE_FLAG_PATRONEN) {
-                        if (check.patroon.test(inhoud) || check.patroon.test(src))
-                            await logBevinding(check.ernst, 'DYNAMISCH_SCRIPT',
-                                `Dynamisch script: ${check.omschrijving}`, check.nb, `src="${src.slice(0, 100)}"`);
-                    }
-                    for (const check of TRACKER_PATRONEN) {
-                        if (check.patroon.test(inhoud) || check.patroon.test(src))
-                            await logBevinding(check.ernst, 'TRACKER_INJECTIE',
-                                `Dynamisch tracker-script geïnjecteerd: ${check.omschrijving}`,
-                                check.nb, `injectie #${traceInjectTeller} src="${src.slice(0, 80)}"`);
-                    }
-                    if (traceInjectTeller > 10) {
-                        await logBevinding('KRITIEK', 'MASSALE_SCRIPT_INJECTIE',
-                            `${traceInjectTeller} scripts dynamisch geïnjecteerd (NB-99: 19×)`,
-                            'NB-99', `laatste src="${src.slice(0, 80)}"`);
-                    }
-                }
-
-                if (node.style && node.style.display === 'none' && tekst.trim().length > 10) {
-                    await logBevinding('HOOG', 'VERBORGEN_ELEMENT_TOEGEVOEGD',
-                        'Verborgen element met inhoud dynamisch toegevoegd',
-                        'NB-62/99', `tekst="${tekst.trim().slice(0, 100)}"`);
-                }
-
-                if (node.classList) {
-                    for (const cls of CSS_VERBERGING_KLASSEN) {
-                        if (node.classList.contains(cls)) {
-                            await logBevinding('KRITIEK', 'VERBERGING_KLASSE_TOEGEVOEGD',
-                                `Element met .${cls} dynamisch toegevoegd`,
-                                'NB-12/53', `tekst="${tekst.trim().slice(0, 80)}"`);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (mut.type === 'attributes') {
-                const el = mut.target;
-                if (mut.attributeName === 'style' && el.style.display === 'none') {
-                    await logBevinding('HOOG', 'STIJL_VERBERGING',
-                        'display:none dynamisch ingesteld via stijlattribuut',
-                        'NB-12/99', `tag=${el.tagName} class=${(el.className || '').slice(0, 60)}`);
-                }
-                if (mut.attributeName === 'class') {
-                    for (const cls of CSS_VERBERGING_KLASSEN) {
-                        if (el.classList && el.classList.contains(cls)) {
-                            await logBevinding('HOOG', 'VERBERGING_KLASSE_DYNAMISCH',
-                                `Klasse .${cls} dynamisch toegevoegd via classList`,
-                                'NB-12/53/99', `tag=${el.tagName}`);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    observer.observe(document.documentElement, {
-        childList: true, subtree: true, attributes: true,
-        attributeFilter: ['style', 'class', 'hidden'], characterData: false,
-    });
-
-    const origXHROpen = XMLHttpRequest.prototype.open;
-    const origXHRSend = XMLHttpRequest.prototype.send;
-
-    XMLHttpRequest.prototype.open = function (methode, url, ...rest) {
-        this._forensischUrl = url;
-        this._forensischMethode = methode;
-        return origXHROpen.call(this, methode, url, ...rest);
-    };
-
-    XMLHttpRequest.prototype.send = function (body) {
-        const url = this._forensischUrl || '';
-        for (const at of AUDIT_TRAIL_URLS) {
-            if (url.includes(at)) {
-                this.addEventListener('load', async () => {
-                    if (this.status === 403 || this.status === 0 || this.status === 401) {
-                        await logBevinding('KRITIEK', 'AUDIT_TRAIL_GEBLOKKEERD',
-                            `Audit trail XHR geblokkeerd: ${url.split('?')[0]}`,
-                            'NB-163', `status=${this.status} url=${url.slice(0, 120)}`);
-                    }
-                });
-            }
-        }
-        this.addEventListener('load', async () => {
-            const tekst = this.responseText || '';
-            if (tekst.length < 50) return;
-            for (const check of DIAGNOSE_PATRONEN) {
-                const m = check.patroon.exec(tekst);
-                if (m) await logBevinding(check.ernst, 'DIAGNOSE_IN_XHR',
-                    `${check.omschrijving} in XHR respons`,
-                    check.nb, `url=${url.slice(0, 100)} ctx="${tekst.slice(Math.max(0, m.index - 50), m.index + 100)}"`);
-            }
-            for (const check of FEATURE_FLAG_PATRONEN) {
-                if (check.patroon.test(tekst)) await logBevinding(check.ernst, 'FEATURE_FLAG_IN_XHR',
-                    `${check.omschrijving} in XHR respons`, check.nb, `url=${url.slice(0, 100)}`);
-            }
         });
-        return origXHRSend.call(this, body);
-    };
 
-    const origFetch = window.fetch;
-    window.fetch = async function (input, init) {
-        const url = typeof input === 'string' ? input : input.url || '';
-        const respons = await origFetch.call(window, input, init);
-        const statusCode = respons.status;
-        for (const at of AUDIT_TRAIL_URLS) {
-            if (url.includes(at) && (statusCode === 403 || statusCode === 0 || statusCode === 401)) {
-                await logBevinding('KRITIEK', 'AUDIT_TRAIL_GEBLOKKEERD_FETCH',
-                    `Audit trail Fetch geblokkeerd: ${url.split('?')[0]}`,
-                    'NB-163', `status=${statusCode}`);
+        mut.addedNodes.forEach(function (node) {
+            if (node.nodeType !== 1) return;
+            if (node.style && (node.style.display === 'none' || node.style.visibility === 'hidden')) {
+                var tekst = (node.textContent || '').trim();
+                if (tekst.length > 10) {
+                    logBevinding('HOOG', 'VERBORGEN_ELEMENT_TOEGEVOEGD',
+                        'Verborgen element met inhoud dynamisch toegevoegd',
+                        'NB-62/99', 'tekst="' + tekst.slice(0, 100) + '"');
+                }
+            }
+            CSS_VERBERGING_KLASSEN.forEach(function (cls) {
+                if (node.classList && node.classList.contains(cls)) {
+                    logBevinding('KRITIEK', 'VERBERGING_KLASSE_TOEGEVOEGD',
+                        'Element met .' + cls + ' dynamisch toegevoegd',
+                        'NB-12/53', 'tekst="' + (node.textContent || '').trim().slice(0, 80) + '"');
+                }
+            });
+        });
+
+        if (mut.type === 'attributes' && mut.attributeName === 'style') {
+            var el = mut.target;
+            if (el.style && el.style.display === 'none') {
+                logBevinding('HOOG', 'STIJL_VERBERGING',
+                    'display:none dynamisch ingesteld via stijlattribuut',
+                    'NB-12/99', 'tag=' + el.tagName + ' class=' + (el.className || '').slice(0, 60));
+                el.style.setProperty('display', 'block', 'important');
             }
         }
-        respons.clone().text().then(async (tekst) => {
-            if (!tekst || tekst.length < 50) return;
-            for (const check of DIAGNOSE_PATRONEN) {
-                const m = check.patroon.exec(tekst);
-                if (m) await logBevinding(check.ernst, 'DIAGNOSE_IN_FETCH',
-                    `${check.omschrijving} in Fetch respons`,
-                    check.nb, `url=${url.slice(0, 100)} ctx="${tekst.slice(Math.max(0, m.index - 50), m.index + 100)}"`);
-            }
-            for (const check of FEATURE_FLAG_PATRONEN) {
-                if (check.patroon.test(tekst)) await logBevinding(check.ernst, 'FEATURE_FLAG_IN_FETCH',
-                    check.omschrijving, check.nb, `url=${url.slice(0, 100)}`);
-            }
-        }).catch(() => {});
-        return respons;
-    };
+    });
+});
 
-    function downloadEvidence() {
-        const ts = new Date().toISOString().replace(/[:.]/g, '-');
-        const data = {
-            meta: {
-                dossier: DOSSIER, versie: VERSIE,
-                exportTijdstip: new Date().toISOString(),
-                url: window.location.href, userAgent: navigator.userAgent,
-                totaalBevindingen: evidenceLog.length,
-            },
-            samenvatting: (() => {
-                const s = {};
-                for (const b of evidenceLog) s[b.ernst] = (s[b.ernst] || 0) + 1;
-                return s;
-            })(),
-            bevindingen: evidenceLog,
-        };
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `forensisch_portal_evidence_${ts}.json`;
-        a.click();
-        console.log(`${LOG_PREFIX} Evidence geëxporteerd: ${evidenceLog.length} bevindingen`);
-    }
-
-    function voegExportKnopToe() {
-        if (document.getElementById('forensisch-export-btn')) return;
-        const knop = document.createElement('button');
-        knop.id = 'forensisch-export-btn';
-        knop.textContent = `⬇ Evidence (${evidenceLog.length})`;
-        knop.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:999998;background:#0033cc;color:white;border:none;padding:8px 14px;border-radius:6px;font-family:monospace;font-size:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4)';
-        knop.onclick = downloadEvidence;
-        document.body.appendChild(knop);
-        setInterval(() => { knop.textContent = `⬇ Evidence (${evidenceLog.length})`; }, 2000);
-    }
-
-    async function initialiseer() {
-        console.log(`%c${LOG_PREFIX} Portal Forensisch Monitor v${VERSIE} gestart`,
-            'color:#00aaff;font-weight:bold;font-size:14px;',
-            `\nDossier: ${DOSSIER}`, '\nURL:', window.location.href);
-        await scanDOM();
-        await scanScripts();
-        if (document.body) voegExportKnopToe();
-        else document.addEventListener('DOMContentLoaded', voegExportKnopToe);
-        console.log(`${LOG_PREFIX} Scan voltooid. ${evidenceLog.length} bevindingen.`);
-    }
-
-    window.downloadForensischEvidence = downloadEvidence;
-    window.forensischLog = evidenceLog;
-    window.forensischScan = scanDOM;
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialiseer);
+function startDomWatch() {
+    if (document.body) {
+        stripCSSHiding(document.body);
+        domObserver.observe(document.body, {
+            childList: true, subtree: true,
+            attributes: true, attributeFilter: ['style', 'class', 'hidden'],
+        });
     } else {
-        initialiseer();
+        setTimeout(startDomWatch, 50);
     }
+}
+startDomWatch();
+
+var origFetch = window.fetch;
+window.fetch = function (input, init) {
+    var url = (typeof input === 'string') ? input : (input && input.url) || '';
+    if (isAudit(url)) logBevinding('HOOG', 'AUDIT_FETCH', 'Audit trail fetch (NB-163)', 'NB-163', url);
+
+    return origFetch.apply(this, arguments).then(function (resp) {
+        try {
+            resp.clone().text().then(function (body) {
+                if (isAudit(url) && (resp.status === 403 || resp.status === 401 || resp.status === 0)) {
+                    logBevinding('KRITIEK', 'AUDIT_GEBLOKKEERD',
+                        'Audit trail Fetch geblokkeerd HTTP ' + resp.status + ' (NB-163)',
+                        'NB-163', 'url=' + url.split('?')[0]);
+                }
+                scan(body, url);
+            }).catch(function () {});
+        } catch (e) {}
+        return resp;
+    });
+};
+
+var origOpen = XMLHttpRequest.prototype.open;
+var origSend = XMLHttpRequest.prototype.send;
+
+XMLHttpRequest.prototype.open = function (method, url) {
+    this._f_url = url;
+    this._f_method = method;
+    return origOpen.apply(this, arguments);
+};
+
+XMLHttpRequest.prototype.send = function (body) {
+    var self = this;
+    var url = this._f_url || '';
+
+    if (isAudit(url)) logBevinding('HOOG', 'AUDIT_XHR',
+        'Audit trail XHR ' + (this._f_method || '') + ' (NB-163)', 'NB-163', url);
+    if (typeof body === 'string') scan(body, url);
+
+    this.addEventListener('load', function () {
+        try {
+            if (isAudit(url) && (self.status === 403 || self.status === 401 || self.status === 0)) {
+                logBevinding('KRITIEK', 'AUDIT_GEBLOKKEERD',
+                    'Audit trail XHR geblokkeerd HTTP ' + self.status + ' (NB-163)',
+                    'NB-163', 'url=' + url.split('?')[0]);
+            }
+            if (self.responseText) scan(self.responseText, url);
+        } catch (e) {}
+    });
+
+    return origSend.apply(this, arguments);
+};
+
+function downloadEvidence() {
+    var ts = new Date().toISOString().replace(/[:.]/g, '-');
+    var data = {
+        meta: {
+            dossier: DOSSIER, versie: '9.0',
+            exportTijdstip: new Date().toISOString(),
+            url: window.location.href, userAgent: navigator.userAgent,
+            totaalBevindingen: evidenceLog.length,
+        },
+        samenvatting: (function () {
+            var s = {};
+            evidenceLog.forEach(function (b) { s[b.ernst] = (s[b.ernst] || 0) + 1; });
+            return s;
+        })(),
+        bevindingen: evidenceLog,
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'forensisch_evidence_' + ts + '.json';
+    a.click();
+    console.log(LOG_PREFIX + ' Evidence geexporteerd: ' + evidenceLog.length + ' bevindingen');
+}
+
+function voegExportKnopToe() {
+    if (document.getElementById('fg-export-btn')) return;
+    var knop = document.createElement('button');
+    knop.id = 'fg-export-btn';
+    knop.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:2147483647;' +
+        'background:#003399;color:#fff;border:none;padding:8px 14px;' +
+        'border-radius:6px;font-family:monospace;font-size:12px;cursor:pointer;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,.4)';
+    knop.onclick = downloadEvidence;
+    setInterval(function () {
+        knop.textContent = '[F] Evidence (' + evidenceLog.length + ')';
+    }, 1500);
+    knop.textContent = '[F] Evidence (0)';
+    if (document.body) document.body.appendChild(knop);
+}
+
+window.downloadForensischEvidence = downloadEvidence;
+window.forensischLog = evidenceLog;
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', voegExportKnopToe);
+} else {
+    voegExportKnopToe();
+}
+
+console.log(LOG_PREFIX + ' Forensisch Monitor v9.0 actief | Dossier: ' + DOSSIER + ' | URL: ' + window.location.href);
 
 })();
