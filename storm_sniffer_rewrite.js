@@ -1,4 +1,6 @@
-const CFG = {
+(function () {
+
+var CFG = {
     verwijderCORSBlokkade: true,
     verwijderCSSVerberging: true,
     verwijderCSP: true,
@@ -11,171 +13,268 @@ const CFG = {
         'AuditTrail',
     ],
     forensischePatronen: [
-        { patroon: /F19\.1|neusdruppelmisbruik/i,           label: 'F19.1 neusdruppelmisbruik (NB-01)' },
-        { patroon: /361055000/,                              label: 'SNOMED 361055000 (NB-03)' },
-        { patroon: /228273003/,                              label: 'SNOMED 228273003 drugsgebruik (NB-23)' },
-        { patroon: /nullFlavor="UNK"/i,                      label: 'CDA nullFlavor=UNK (NB-18)' },
-        { patroon: /extension="999999"/i,                    label: 'Epic ext=999999 anonymous (NB-18)' },
-        { patroon: /extension="373282512"/i,                 label: 'A. al-Mousawi ext (NB-05)' },
-        { patroon: /Epic@spaarnegasthuis\.nl/i,              label: 'Epic admin email (NB-05)' },
-        { patroon: /DISABLEMYCONDITIONS/i,                   label: 'Feature flag DISABLEMYCONDITIONS (NB-11)' },
-        { patroon: /DISABLEPLANOFCARE/i,                     label: 'Feature flag DISABLEPLANOFCARE (NB-11)' },
-        { patroon: /SUBSTANCEHXQNR/i,                        label: 'SUBSTANCEHXQNR module (NB-108)' },
-        { patroon: /AUTOGENERATESIGNATURE/i,                 label: 'AUTOGENERATESIGNATURE (NB-82)' },
-        { patroon: /recording_capture_keystrokes=true/i,     label: 'Hotjar keystroke capture (NB-53)' },
-        { patroon: /spaarne-rebuild\.productie\.hoppinger/i, label: 'Hoppinger supply chain (NB-114)' },
-        { patroon: /override\.css/i,                         label: 'override.css referentie (NB-53/89)' },
-        { patroon: /hiddenProvider|CEDataExternal/i,         label: 'CSS verberging klasse (NB-12)' },
-        { patroon: /noView\s*:\s*true/i,                     label: 'noView:true (NB-99)' },
-        { patroon: /HANDMATIGE_EDIT_BOM/i,                   label: 'Bytemanipulatieflag (NB-13)' },
-        { patroon: /20260110033455/,                         label: '*** NACHT-TIMESTAMP AVG-dag 10-01-2026 (NB-166)' },
-        { patroon: /transactie.{0,10}77832/i,                label: 'Transactie-ID 77832 SNOMED SUCCESS (NB-23)' },
-        { patroon: /215672185/,                              label: 'BSN in response body' },
-        { patroon: /0133033170/,                             label: 'MDN in response body' },
-        { patroon: /DE36B70A/i,                              label: 'Sentry device ID DE36B70A (NB-69)' },
+        { p: /F19\.1|neusdruppelmisbruik/i,            l: 'F19.1 neusdruppelmisbruik (NB-01)' },
+        { p: /361055000/,                               l: 'SNOMED 361055000 (NB-03)' },
+        { p: /228273003/,                               l: 'SNOMED 228273003 drugsgebruik (NB-23)' },
+        { p: /228366006/,                               l: 'SNOMED 228366006 stimulant misuse' },
+        { p: /nullFlavor="UNK"/i,                       l: 'CDA nullFlavor=UNK anonieme auteur (NB-18)' },
+        { p: /extension="999999"/i,                     l: 'Epic ext=999999 anonymous (NB-18)' },
+        { p: /extension="373282512"/i,                  l: 'A. al-Mousawi ext (NB-05)' },
+        { p: /extension="51504662"|extension="84107660"/i, l: 'N.M. Nota ext (NB-04)' },
+        { p: /Epic@spaarnegasthuis\.nl/i,               l: 'Epic admin email (NB-05)' },
+        { p: /DISABLEMYCONDITIONS/i,                    l: 'Feature flag DISABLEMYCONDITIONS (NB-11)' },
+        { p: /DISABLEPLANOFCARE/i,                      l: 'Feature flag DISABLEPLANOFCARE (NB-11)' },
+        { p: /SUBSTANCEHXQNR/i,                         l: 'SUBSTANCEHXQNR module (NB-108)' },
+        { p: /AUTOGENERATESIGNATURE/i,                  l: 'AUTOGENERATESIGNATURE (NB-82)' },
+        { p: /recording_capture_keystrokes=true/i,      l: 'Hotjar keystroke capture ACTIEF (NB-53)' },
+        { p: /spaarne-rebuild\.productie\.hoppinger/i,  l: 'Hoppinger supply chain (NB-114)' },
+        { p: /override\.css/i,                          l: 'override.css referentie (NB-53/89)' },
+        { p: /hiddenProvider|CEDataExternal/i,          l: 'CSS verberging klasse (NB-12)' },
+        { p: /noView\s*:\s*true/i,                      l: 'noView:true (NB-99)' },
+        { p: /HANDMATIGE_EDIT_BOM/i,                    l: 'Bytemanipulatieflag (NB-13)' },
+        { p: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i,       l: 'Audit trail feature flag (NB-163)' },
+        { p: /GUARD\b/,                                 l: 'GUARD blok CDA (NB-56)' },
+        { p: /noView\s*:\s*true/i,                      l: 'noView:true (NB-99)' },
+        { p: /20260110033455/,                          l: 'KRITIEK NACHT-TIMESTAMP AVG-dag 10-01-2026 (NB-166)' },
+        { p: /transactie.{0,10}77832/i,                 l: 'Transactie-ID 77832 SNOMED SUCCESS (NB-23)' },
+        { p: /215672185/,                               l: 'BSN in response body' },
+        { p: /0133033170/,                              l: 'MDN in response body' },
+        { p: /DE36B70A/i,                               l: 'Sentry device ID DE36B70A (NB-69)' },
+        { p: /hotjar\.com|hjid=/i,                      l: 'Hotjar tracker (NB-79)' },
+        { p: /sentry\.io/i,                             l: 'Sentry.io telemetrie (NB-69)' },
+        { p: /hoppinger\.com/i,                         l: 'Hoppinger.com (NB-114)' },
+        { p: /FocusZorgTeam.*test\.authorization/i,     l: 'FocusZorgTeam test-server productie (NB-91)' },
+        { p: /printBlackText/i,                         l: 'printBlackText alarmkleuren (NB-84)' },
+        { p: /lucy\.css|lucy_colors/i,                  l: 'lucy.css renderingslaag (NB-71)' },
+        { p: /\$lastn/i,                                l: 'FHIR $lastn re-replay (NB-109)' },
+        { p: /Brijder|Parnassia.*Indigo|Indigo.*Parnassia/i, l: 'Parnassia/Brijder FHIR nooit in behandeling (NB-113)' },
     ],
 };
 
-function logForensisch(ernst, label, details) {
-    const prefix = { KRITIEK: '🔴', HOOG: '🟠', MEDIUM: '🟡', INFO: '🔵' }[ernst] || '⚪';
-    console.log(`${prefix} [FORENSISCH][${ernst}] ${label}`);
-    if (details) console.log(`   → ${details}`);
+function log(ernst, label, detail) {
+    var prefix = { KRITIEK: '[!!]', HOOG: '[!]', MEDIUM: '[~]', INFO: '[i]' }[ernst] || '[?]';
+    console.log(prefix + ' [F][' + ernst + '] ' + label);
+    if (detail) console.log('    -> ' + String(detail).slice(0, 300));
 }
 
-function isAuditTrailUrl(url) {
-    return CFG.auditTrailEndpoints.some(e => url.includes(e));
+function hGet(headers, name) {
+    if (!headers) return '';
+    var lo = name.toLowerCase();
+    var keys = Object.keys(headers);
+    for (var i = 0; i < keys.length; i++) {
+        if (keys[i].toLowerCase() === lo) return String(headers[keys[i]] || '');
+    }
+    return '';
 }
 
-function verwijderCORSHeadersUit(headers) {
-    const teVerwijderen = [
-        'access-control-allow-origin', 'access-control-allow-methods',
-        'access-control-allow-headers', 'access-control-expose-headers',
-        'x-frame-options', 'content-security-policy', 'x-content-type-options',
+function hDel(headers, name) {
+    if (!headers) return;
+    var lo = name.toLowerCase();
+    var keys = Object.keys(headers);
+    for (var i = 0; i < keys.length; i++) {
+        if (keys[i].toLowerCase() === lo) delete headers[keys[i]];
+    }
+}
+
+function isAudit(url) {
+    for (var i = 0; i < CFG.auditTrailEndpoints.length; i++) {
+        if (url.indexOf(CFG.auditTrailEndpoints[i]) !== -1) return true;
+    }
+    return false;
+}
+
+function bodyStr(b) {
+    if (!b) return '';
+    if (typeof b === 'string') return b;
+    try { return String(b); } catch (e) { return ''; }
+}
+
+function isText(ct) {
+    if (!ct) return false;
+    var s = ct.toLowerCase();
+    return s.indexOf('text/') !== -1 ||
+           s.indexOf('application/json') !== -1 ||
+           s.indexOf('application/xml') !== -1 ||
+           s.indexOf('application/javascript') !== -1 ||
+           s.indexOf('+xml') !== -1 ||
+           s.indexOf('+json') !== -1;
+}
+
+function applyCORSHeaders(headers) {
+    var rm = [
+        'access-control-allow-origin',
+        'access-control-allow-methods',
+        'access-control-allow-headers',
+        'access-control-expose-headers',
+        'x-frame-options',
+        'content-security-policy',
+        'content-security-policy-report-only',
+        'x-content-type-options',
     ];
-    const nieuw = {};
-    for (const [k, v] of Object.entries(headers || {})) {
-        if (!teVerwijderen.includes(k.toLowerCase())) nieuw[k] = v;
-    }
-    nieuw['Access-Control-Allow-Origin'] = '*';
-    nieuw['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE';
-    nieuw['Access-Control-Allow-Headers'] = '*';
-    nieuw['Access-Control-Expose-Headers'] = '*';
-    return nieuw;
+    for (var i = 0; i < rm.length; i++) hDel(headers, rm[i]);
+    headers['Access-Control-Allow-Origin'] = '*';
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE';
+    headers['Access-Control-Allow-Headers'] = '*';
+    headers['Access-Control-Expose-Headers'] = '*';
 }
 
-function verwijderCSPHeaderUit(headers) {
-    const nieuw = {};
-    for (const [k, v] of Object.entries(headers || {})) {
-        if (k.toLowerCase() !== 'content-security-policy') nieuw[k] = v;
-    }
-    return nieuw;
+function stripCSP(headers) {
+    hDel(headers, 'content-security-policy');
+    hDel(headers, 'content-security-policy-report-only');
+    hDel(headers, 'x-frame-options');
+    hDel(headers, 'x-xss-protection');
 }
 
-function verwijderCSSVerbergingUitBody(body) {
-    if (!body || typeof body !== 'string') return body;
+function stripCSSHiding(body) {
     body = body.replace(/(\.hiddenProvider\s*\{[^}]*?)display\s*:\s*none([^}]*\})/gi, '$1display:block$2');
     body = body.replace(/(CEDataExternal\s*\{[^}]*?)display\s*:\s*none\s*!important([^}]*\})/gi, '$1display:block$2');
     body = body.replace(/(\.SRonly\s*\{[^}]*?)left\s*:\s*-\d{4,}px([^}]*\})/gi, '$1left:auto$2');
     body = body.replace(/(\.SRonly\s*\{[^}]*?)font-size\s*:\s*0px?([^}]*\})/gi, '$1font-size:inherit$2');
-    body = body.replace(/class="([^"]*hiddenProvider[^"]*)"/gi, 'class="$1" data-forensisch-onthuld="1" style="display:block!important"');
-    body = body.replace(/class="([^"]*CEDataExternal[^"]*)"/gi, 'class="$1" data-forensisch-onthuld="1" style="display:block!important"');
+    body = body.replace(/class="([^"]*hiddenProvider[^"]*)"/gi, 'class="$1" data-f="1" style="display:block!important"');
+    body = body.replace(/class="([^"]*CEDataExternal[^"]*)"/gi, 'class="$1" data-f="1" style="display:block!important"');
+    body = body.replace(/(visibility\s*:\s*hidden)(\s*!important)?/gi, 'visibility:visible');
+    body = body.replace(/(font-size\s*:\s*0)(px|em|rem)?(\s*!important)?/gi, 'font-size:inherit');
     return body;
 }
 
-function scanBodyOpPatronen(body, url) {
-    if (!body || typeof body !== 'string') return;
-    for (const { patroon, label } of CFG.forensischePatronen) {
-        const m = body.match(patroon);
+function scan(body, url) {
+    if (!body || body.length < 4) return;
+    var su = url.split('?')[0];
+    var pats = CFG.forensischePatronen;
+    for (var i = 0; i < pats.length; i++) {
+        var m = body.match(pats[i].p);
         if (m) {
-            const idx = body.search(patroon);
-            const context = body.substring(Math.max(0, idx - 60), idx + 100).replace(/\n/g, ' ').trim();
-            logForensisch(
-                label.startsWith('***') ? 'KRITIEK' : 'HOOG',
-                label,
-                `URL: ${url.split('?')[0]} | Context: ...${context}...`
-            );
+            var idx = body.search(pats[i].p);
+            var ctx = body.substring(Math.max(0, idx - 60), idx + 100).replace(/[\n\r]/g, ' ').trim();
+            var ernst = pats[i].l.indexOf('KRITIEK') !== -1 ? 'KRITIEK' : 'HOOG';
+            log(ernst, pats[i].l, 'URL: ' + su + ' | ...' + ctx + '...');
         }
     }
 }
 
-function scanHeadersOpPatronen(headers, url) {
-    if (!headers) return;
-    if (headers['access-control-allow-origin'] === undefined && isAuditTrailUrl(url)) {
-        logForensisch('KRITIEK', 'CORS-blokkade audit trail (NB-163)',
-            `Geen Access-Control-Allow-Origin op ${url.split('?')[0]}`);
-    }
-    const csp = headers['content-security-policy'] || headers['Content-Security-Policy'];
-    if (csp) logForensisch('MEDIUM', 'Content-Security-Policy aanwezig', `CSP: ${csp.substring(0, 120)}`);
-    const cookie = headers['set-cookie'] || headers['Set-Cookie'];
-    if (cookie) logForensisch('INFO', 'Set-Cookie header', cookie.substring(0, 80));
-}
+var isResp = false;
+var isReq  = false;
+try { isResp = typeof $response !== 'undefined' && $response !== null && $response !== undefined; } catch(e) {}
+try { isReq  = !isResp && typeof $request !== 'undefined' && $request !== null; } catch(e) {}
 
-const isResponse = typeof $response !== 'undefined';
-const isRequest = typeof $request !== 'undefined' && !isResponse;
+if (isResp) {
+    var url    = '';
+    var method = '';
+    var status = 0;
+    var headers = {};
+    var body   = '';
 
-if (isResponse) {
-    const url = $request.url;
-    const status = $response.status;
-    let headers = Object.assign({}, $response.headers);
-    let body = $response.body;
+    try { url    = $request.url || ''; }     catch(e) {}
+    try { method = $request.method || ''; }  catch(e) {}
+    try { status = $response.status || 0; }  catch(e) {}
+    try { headers = $response.headers ? JSON.parse(JSON.stringify($response.headers)) : {}; } catch(e) { headers = {}; }
+    try { body   = bodyStr($response.body); } catch(e) { body = ''; }
 
-    console.log(`[FORENSISCH] Response: ${$request.method} ${status} ${url.split('?')[0]}`);
-    scanHeadersOpPatronen(headers, url);
+    var su = url.split('?')[0];
+    var origBody = body;
+    var origHeaders = JSON.parse(JSON.stringify(headers));
 
-    if (isAuditTrailUrl(url)) {
-        if (status === 403 || status === 401 || status === 0) {
-            logForensisch('KRITIEK', `Audit trail geblokkeerd HTTP ${status} (NB-163)`, url.split('?')[0]);
-        } else {
-            logForensisch('INFO', `Audit trail bereikbaar: HTTP ${status}`, url.split('?')[0]);
+    try {
+        console.log('[F] Response: ' + method + ' ' + status + ' ' + su);
+
+        if (!hGet(headers, 'access-control-allow-origin') && isAudit(url)) {
+            log('KRITIEK', 'CORS-blokkade audit trail (NB-163)', 'Geen ACAO op ' + su);
+        }
+        var csp = hGet(headers, 'content-security-policy');
+        if (csp) log('MEDIUM', 'CSP aanwezig', csp.slice(0, 120));
+
+        if (isAudit(url)) {
+            if (status === 403 || status === 401 || status === 0) {
+                log('KRITIEK', 'Audit trail geblokkeerd HTTP ' + status + ' (NB-163)', su);
+            } else {
+                log('INFO', 'Audit trail bereikbaar HTTP ' + status, su);
+            }
+        }
+
+        var ct = hGet(headers, 'content-type');
+        if (isText(ct) || body.length > 0) {
+            scan(body, url);
+        }
+
+        if (CFG.verwijderCORSBlokkade && isAudit(url)) {
+            applyCORSHeaders(headers);
+            log('INFO', 'CORS-blokkade verwijderd', su);
+        }
+
+        if (CFG.verwijderCSP) {
+            stripCSP(headers);
+        }
+
+        var doStrip = CFG.verwijderCSSVerberging && (
+            ct.indexOf('text/html') !== -1 ||
+            ct.indexOf('text/css') !== -1 ||
+            body.indexOf('hiddenProvider') !== -1 ||
+            body.indexOf('CEDataExternal') !== -1 ||
+            body.indexOf('SRonly') !== -1 ||
+            body.indexOf('display:none') !== -1 ||
+            body.indexOf('display: none') !== -1
+        );
+        if (doStrip) {
+            var lenVoor = body.length;
+            body = stripCSSHiding(body);
+            if (body.length !== lenVoor) {
+                log('KRITIEK', 'CSS verberging verwijderd (NB-12/53)', su + ' | ' + lenVoor + ' -> ' + body.length + ' bytes');
+            }
+        }
+
+        if (status === 204 && url.indexOf('api') !== -1) {
+            log('HOOG', 'HTTP 204 op API - mogelijke data-filtering', su);
+        }
+
+        $done({ status: status, headers: headers, body: body });
+
+    } catch (e) {
+        console.log('[F] FOUT response: ' + e);
+        try {
+            $done({ status: status, headers: origHeaders, body: origBody });
+        } catch (e2) {
+            try { $done({}); } catch(e3) {}
         }
     }
 
-    scanBodyOpPatronen(body, url);
+} else if (isReq) {
+    var url    = '';
+    var method = '';
+    var headers = {};
+    var body   = '';
 
-    if (CFG.verwijderCORSBlokkade && isAuditTrailUrl(url)) {
-        headers = verwijderCORSHeadersUit(headers);
-        logForensisch('INFO', 'CORS-blokkade verwijderd voor audit trail', url.split('?')[0]);
+    try { url     = $request.url || ''; }     catch(e) {}
+    try { method  = $request.method || ''; }  catch(e) {}
+    try { headers = $request.headers || {}; } catch(e) {}
+    try { body    = bodyStr($request.body); } catch(e) {}
+
+    var su = url.split('?')[0];
+
+    try {
+        console.log('[F] Request: ' + method + ' ' + su);
+
+        if (isAudit(url)) log('HOOG', 'Audit trail request ' + method + ' (NB-163)', su);
+        if (url.indexOf('215672185') !== -1) log('INFO', 'BSN 215672185 in URL', su);
+        if (url.indexOf('0133033170') !== -1) log('INFO', 'MDN 0133033170 in URL', su);
+
+        var auth = hGet(headers, 'authorization');
+        if (auth) log('INFO', 'Authorization header aanwezig', auth.slice(0, 40) + '...');
+
+        var ck = hGet(headers, 'cookie');
+        if (ck && ck.indexOf('SESSION') !== -1) log('INFO', 'Session cookie', ck.slice(0, 80));
+
+        scan(body, url);
+
+        $done({});
+
+    } catch (e) {
+        console.log('[F] FOUT request: ' + e);
+        try { $done({}); } catch(e2) {}
     }
-
-    if (CFG.verwijderCSP) headers = verwijderCSPHeaderUit(headers);
-
-    const contentType = (headers['content-type'] || headers['Content-Type'] || '').toLowerCase();
-    if (CFG.verwijderCSSVerberging && (contentType.includes('text/html') || contentType.includes('text/css'))) {
-        const origLen = body ? body.length : 0;
-        body = verwijderCSSVerbergingUitBody(body);
-        if (body && body.length !== origLen) {
-            logForensisch('KRITIEK', 'CSS verberging verwijderd uit response body (NB-12/53)',
-                `${url.split('?')[0]} | bytes voor: ${origLen} na: ${body.length}`);
-        }
-    }
-
-    if (status === 204 && url.includes('api')) {
-        logForensisch('HOOG', 'Lege HTTP 204 op API endpoint — mogelijke data-filtering', url.split('?')[0]);
-    }
-
-    $done({ status, headers, body });
-
-} else if (isRequest) {
-    const url = $request.url;
-    const methode = $request.method;
-    const headers = $request.headers || {};
-    const body = $request.body || '';
-
-    console.log(`[FORENSISCH] Request: ${methode} ${url.split('?')[0]}`);
-
-    if (isAuditTrailUrl(url)) logForensisch('HOOG', `Audit trail request: ${methode} (NB-163)`, url.split('?')[0]);
-    if (url.includes('215672185')) logForensisch('INFO', 'BSN 215672185 in request URL', url.split('?')[0]);
-    if (url.includes('0133033170')) logForensisch('INFO', 'MDN 0133033170 in request URL', url.split('?')[0]);
-
-    const auth = headers['Authorization'] || headers['authorization'];
-    if (auth) logForensisch('INFO', 'Authorization header aanwezig', auth.substring(0, 40) + '...');
-
-    const cookie = headers['Cookie'] || headers['cookie'];
-    if (cookie && cookie.includes('SESSION')) logForensisch('INFO', 'Session cookie in request', cookie.substring(0, 80));
-
-    scanBodyOpPatronen(body, url);
-    $done({});
 
 } else {
-    console.log('[FORENSISCH] Script geladen buiten Storm Sniffer context.');
+    console.log('[F] Geen proxy-context.');
+    try { $done({}); } catch(e) {}
 }
+
+})();
