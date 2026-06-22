@@ -1,0 +1,90 @@
+name: Dagelijkse forensische analyse
+
+on:
+  schedule:
+    # 06:00 CET dagelijks (05:00 UTC winter, 04:00 UTC zomer)
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      include_drive_sync:
+        description: 'Google Drive sync uitvoeren'
+        required: false
+        default: 'true'
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  forensic-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: claude/decorator-forensic-analysis-tokens-gxvcxw
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Python setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Installeer dependencies
+        run: pip install openpyxl
+
+      - name: Herstel extracted_docs cache
+        uses: actions/cache@v4
+        with:
+          path: extracted_docs/
+          key: extracted-docs-${{ github.run_id }}
+          restore-keys: extracted-docs-
+
+      - name: Herstel evidence index
+        uses: actions/cache@v4
+        with:
+          path: forensic/evidence_index.json
+          key: evidence-index-${{ github.run_id }}
+          restore-keys: evidence-index-
+
+      # ── Stap 1: Lokale forensische analyse ──────────────────────────────
+      - name: Forensische pipeline (lokale bestanden)
+        run: python3 -m forensic.pipeline
+
+      # ── Stap 2: Drive sync prompts voorbereiden (geen auto-uitvoering) ──
+      - name: Drive sync prompts voorbereiden
+        run: |
+          python3 -m forensic.drive_sync
+          echo "Sync-prompts klaar in forensic/_sync_prompt_*.txt"
+          echo "Handmatige stap: voer 'claude -p \"\$(cat forensic/_sync_prompt_context_voor_ai.txt)\"' uit in een Claude-sessie"
+
+      # ── Stap 3: Genereer definitief Excel-rapport ────────────────────
+      - name: Genereer Excel rapport
+        run: python3 -m forensic.excel_report
+
+      # ── Stap 5: Commit rapporten ──────────────────────────────────────
+      - name: Commit rapporten
+        run: |
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+
+          TODAY=$(date +%Y-%m-%d)
+
+          # Voeg alleen reports/ toe (niet extracted_docs — dat is gitignored)
+          git add reports/ forensic/evidence_index.json 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "Geen nieuwe rapporten om te committen"
+          else
+            git commit -m "forensic: dagrapport ${TODAY} — pipeline auto-update
+
+Gegenereerd door dagelijkse forensische pipeline.
+Bevat: index, tijdlijn, causale kaart, hypothesen, todo-lijst, Excel.
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+            git push origin claude/decorator-forensic-analysis-tokens-gxvcxw
+          fi
