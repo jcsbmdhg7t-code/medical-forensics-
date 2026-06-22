@@ -83,6 +83,14 @@ De gebruiker typt één van deze signalen om meer detail te krijgen:
 | N.M. Nota | ext 51504662 | Tweemansprocedure 02-10-2024 | NB-108 |
 | Ext=999999 | Anonymous | 6× in DOC0010; anonieme auteur nachtelijk 04:34 CET | NB-166 |
 
+## Forensische pipeline (dagelijks)
+```bash
+python3 -m forensic.pipeline   # scan + index + Excel in reports/
+```
+Output: `reports/TODO_[datum].md`, `INDEX_[datum].md`, `FORENSISCH_DOSSIER_GROTHE_[datum].xlsx`
+GitHub Action: `.github/workflows/daily-forensic.yml` — 06:00 CET, handmatig triggeren via GitHub Actions tab.
+Laatste run: 22-06-2026 — 31 bestanden, ~3 sec.
+
 ## Bestandsstructuur
 ```
 extracted_docs/          ← GITIGNORED — medische data, nooit committen
