@@ -1,203 +1,73 @@
 {
-  "generated": "2026-06-22T19:40:24.830537Z",
+  "generated": "2026-06-22T20:02:33.527367Z",
   "tool": "forensic/hash_manifest.py",
   "dossier": "Grothe BSN 215672185",
-  "total_files": 39,
+  "total_files": 13,
   "files": {
-    "extracted_docs/FORENSIC_AANVULLEND.md": {
-      "sha256": "f96225fa2ea029e683d61277a3f3233bf8b234948a2c2fd2a56b729e9afafea2",
-      "size": 12581,
-      "mtime": "2026-06-22T16:45:30.270802"
-    },
-    "extracted_docs/FORENSIC_NB134B.md": {
-      "sha256": "53c1fb0922cc9192cae44d2813440dacf9cfa15b24baf413d32b4fa84a649f53",
-      "size": 9995,
-      "mtime": "2026-06-13T20:27:27.911324"
-    },
-    "extracted_docs/FORENSIC_NB138_139.md": {
-      "sha256": "16be6b07fb5472460f72afa78091875ada431f2d14f9902b418e929e41a986ff",
-      "size": 11749,
-      "mtime": "2026-06-13T06:37:31.516904"
-    },
-    "extracted_docs/FORENSIC_NB140_144.md": {
-      "sha256": "369355371614e2b9b3873007cff40c2e90fcabb5afdfd2ec24ba4a5cc9100d63",
-      "size": 19545,
-      "mtime": "2026-06-14T13:56:48.808531"
-    },
-    "extracted_docs/FORENSIC_NB145_149.md": {
-      "sha256": "aa8401196bb80e7a66ca44ba725852cd7e1338d6e0f757f5632ccfb0d80c12c1",
-      "size": 15457,
-      "mtime": "2026-06-14T15:44:12.520421"
-    },
-    "extracted_docs/FORENSIC_NB150_154.md": {
-      "sha256": "6065bf2287b7000586932314f595bede2f6ae9e460f8b1abe5e5b7fe8a76ea5e",
-      "size": 15616,
-      "mtime": "2026-06-14T15:36:03.112391"
-    },
-    "extracted_docs/FORENSIC_NB155.md": {
-      "sha256": "b488ee09792f78b2c615b91e733756ce4ebd92314c511c261af40494eec65085",
-      "size": 14438,
-      "mtime": "2026-06-14T15:43:54.596420"
-    },
-    "extracted_docs/FORENSIC_NB156_159.md": {
-      "sha256": "2524a71e1611afb8f71af8da6d7c7c1700679655a0474142f36f1981bf274a77",
-      "size": 26936,
-      "mtime": "2026-06-14T18:37:48.638597"
-    },
-    "extracted_docs/FORENSIC_NB162_165.md": {
-      "sha256": "9d3417c1e3e4cb59c4cac2fa052213b95700525582745595e70c4a48acbdf7e9",
-      "size": 16236,
-      "mtime": "2026-06-14T19:00:04.543020"
-    },
-    "extracted_docs/FORENSIC_NB166_172.md": {
-      "sha256": "9dc8e0f536befa52b938c8ea5a470b0f672af78a4e271b7f20298f54753c0763",
-      "size": 30822,
-      "mtime": "2026-06-22T16:45:21.630801"
-    },
-    "extracted_docs/FORENSIC_OVD_NB132_137.md": {
-      "sha256": "a3d10b4cb0be63116152cb0b04c04f40f1fa734f7a2bac8bd8cc6d3ab6237693",
-      "size": 20264,
-      "mtime": "2026-06-13T06:10:48.314815"
-    },
-    "extracted_docs/FORENSIC_REPORT_VOLLEDIG.md": {
-      "sha256": "1566c19b0fb17b032cb79808664635d16de78a55e95f8afbc114832a07846db0",
-      "size": 8836,
-      "mtime": "2026-06-12T20:41:18.197235"
-    },
-    "extracted_docs/FORENSIC_RHINITIS_ANALYSE.md": {
-      "sha256": "83be05957e9ea1d20e79b130367d23e9e3eb116197dda292cb4e3ac98e62078c",
-      "size": 13835,
-      "mtime": "2026-06-12T21:13:02.628952"
-    },
-    "extracted_docs/FORENSIC_SNAPSHOT_JAN2026.md": {
-      "sha256": "b4e76314af2a98dd66e9891a7b8573c1ab71b6e21ccdf2581818a21bc7e9f70d",
-      "size": 6727,
-      "mtime": "2026-06-12T17:55:02.069030"
-    },
-    "extracted_docs/HANDOFF_2026-06-22.md": {
-      "sha256": "145561a27eaa578fc900c1fb10819826e8e016759f74fbbd6861877c372efd53",
-      "size": 4272,
-      "mtime": "2026-06-22T16:30:34.414017"
-    },
-    "extracted_docs/TX3776_DocumentReferenceIndex.txt": {
-      "sha256": "9706af21a3efda3565d87a1635e4079f386d98ef81416fcb8e55d26f00402f2b",
-      "size": 1116,
-      "mtime": "2026-06-12T17:20:30.398054"
-    },
-    "extracted_docs/TX3776_binary_fj438RKhpuabd2y-UeD6.pdf": {
-      "sha256": "f324181683b4b1da7284d634528be4148eb7012fd6173187aac83b202e33d4c4",
-      "size": 93364,
-      "mtime": "2026-06-12T17:20:30.397552"
-    },
-    "extracted_docs/cap3_rsp_ComponentDownload_1012.pdf": {
-      "sha256": "13d6a0d24007235e73f4e792a3d88818a601f92ee0bdbc63b361c73c8eab7ed8",
-      "size": 166324,
-      "mtime": "2026-06-19T18:19:07.871888"
-    },
-    "extracted_docs/cap4_data_xml_2.xml": {
-      "sha256": "407a0119491071c0eda5b914aeb8cdf3ad0281af5c612ee3aee82b77eb9d6d94",
-      "size": 170959,
-      "mtime": "2026-06-19T18:18:43.829310"
-    },
-    "extracted_docs/cap4_data_xml_xlsx.xml": {
-      "sha256": "2744df8401007e9a275fe75cf8cd564a723407e78bb17e54a880cfa1f0c31938",
-      "size": 1737720,
-      "mtime": "2026-06-19T18:18:43.831346"
-    },
-    "extracted_docs/cap4_file-202606112215_CDA.xml": {
-      "sha256": "d6733de96dc7191b49ab72373efb3dcf9dcfd0e8703fedc5f997150e0f06d31a",
-      "size": 67541,
-      "mtime": "2026-06-19T18:18:43.826893"
-    },
-    "extracted_docs/cap4_samenvatting_2.xml": {
-      "sha256": "7d692afb786ad5838b25e49f04dbde50b7e9bd299b13b1f4367b36bf3bd9890c",
-      "size": 121886,
-      "mtime": "2026-06-19T18:18:43.834770"
-    },
-    "extracted_docs/cap4_samenvatting_3.xml": {
-      "sha256": "7d692afb786ad5838b25e49f04dbde50b7e9bd299b13b1f4367b36bf3bd9890c",
-      "size": 121886,
-      "mtime": "2026-06-19T18:18:43.837151"
-    },
-    "extracted_docs/cap4_samenvatting_4.xml": {
-      "sha256": "db4cf91f4dd0459c8cdfa44c47d53b0fd0ccdb2091121a9818ece2cd9f931ded",
-      "size": 122944,
-      "mtime": "2026-06-19T18:18:43.839612"
-    },
-    "extracted_docs/cap4_samenvatting_5.xml": {
-      "sha256": "8281ca27c15844570acab9ca22464f22ca773620915173bf45cb1d1520bc5ad7",
-      "size": 122944,
-      "mtime": "2026-06-19T18:18:43.842019"
-    },
-    "extracted_docs/zivver_centramed_avg15_response.json": {
-      "sha256": "2a5002ac0a987b2be5f9dfcb2347f60b8daf3f691e44d6843fdac2002b3922a5",
-      "size": 9621,
-      "mtime": "2026-06-19T18:19:55.373673"
-    },
     "forensic/SHA256_MANIFEST.json": {
-      "sha256": "449ccec9597b1e0f2d1e06388eeba4685fed150e0082a64ce4e44bfdfe24fa00",
-      "size": 7765,
-      "mtime": "2026-06-22T19:40:20.053198"
+      "sha256": "f586c94cc057f0dd6011e9391b5a81e792b0037a82d63f6d84bd03ef38a37af6",
+      "size": 7959,
+      "mtime": "2026-06-22T20:02:31.055907"
     },
     "forensic/__init__.py": {
       "sha256": "ab3f893662da558fbb95b27a4ec9c3b9ca420e37234e6c3c1a6faa6cbf79755c",
       "size": 171,
-      "mtime": "2026-06-22T15:44:19.358040"
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/cli.py": {
       "sha256": "ba4912b1f7c30f88819470a45e19d74ddfab44c5f193e4ba6b87d4352affc78f",
       "size": 1531,
-      "mtime": "2026-06-12T16:15:20.164572"
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/decorators.py": {
       "sha256": "82d026c6a07af54dfa16681f58b30613464fb3d6bd22f5c45e3bff8c0f870f61",
       "size": 7900,
-      "mtime": "2026-06-12T16:15:39.028572"
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/deep_extractor.py": {
-      "sha256": "9944f6f78616db7b181dbb8001bf36103c4771e78f77c4892b39a3bc27411a59",
-      "size": 11182,
-      "mtime": "2026-06-22T19:35:37.277436"
+      "sha256": "5810632ad3fb226eabf2749c1bed73e5589e83fc266772376338adc73a1c4b0e",
+      "size": 16413,
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/drive_sync.py": {
       "sha256": "92ba14e85ff7e1e422b40676a2b37cb1900cd6a9bce60a2fdba79bd66c92227c",
       "size": 2523,
-      "mtime": "2026-06-22T15:43:41.666041"
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/evidence_index.json": {
-      "sha256": "03076bb212bf929a760f6f633f26a1f83dd25f841ad19b5b25aa3f2f6b95948f",
-      "size": 47034,
-      "mtime": "2026-06-22T16:45:51.954803"
+      "sha256": "435e526f92bd22b7926d93da1ac9342117919c443bdc76a84e0815c3b7748bc6",
+      "size": 48774,
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/excel_report.py": {
       "sha256": "af71b14e1a9a27d0b068b1d7ba26246a1439972c30fd93b093707a3f116a326a",
       "size": 21028,
-      "mtime": "2026-06-22T15:43:23.410041"
+      "mtime": "2026-06-22T20:02:31.056378"
     },
     "forensic/hash_manifest.py": {
       "sha256": "b9beabff533d13747abe3318f55ad12149273dbc3af5674f9a46e25d5a4af0b3",
       "size": 6080,
-      "mtime": "2026-06-22T19:34:38.345434"
+      "mtime": "2026-06-22T20:02:31.056541"
     },
     "forensic/multi.py": {
       "sha256": "ebe2eba26f40fcb57d4bc3319d92ed1895dba7a953b732f4d473287e402656b5",
       "size": 11252,
-      "mtime": "2026-06-12T16:25:35.188559"
+      "mtime": "2026-06-22T20:02:31.056541"
     },
     "forensic/pipeline.py": {
       "sha256": "d26a251909342671dea156fd416e9014afc3194ec19a4b4bddeef2b823623e52",
       "size": 22644,
-      "mtime": "2026-06-22T19:40:13.481446"
+      "mtime": "2026-06-22T20:02:31.056541"
     },
     "forensic/report.py": {
       "sha256": "6090862dfd164593d62a2ba1806efcde836a73aeabc3ee22974fefdcf4daa90e",
       "size": 3008,
-      "mtime": "2026-06-12T16:22:00.020563"
+      "mtime": "2026-06-22T20:02:31.056541"
     },
     ".github/workflows/daily-forensic.yml": {
-      "sha256": "755ec1c337eda3c80a761095021ea4d13d156c1f2e480c18e394212902d71db3",
-      "size": 3055,
-      "mtime": "2026-06-22T15:46:07.210037"
+      "sha256": "d470cf41dd9eac31911df48aec838d315368d7776f403102e8478752834c5e25",
+      "size": 1912,
+      "mtime": "2026-06-22T20:02:31.055907"
     }
   }
 }
