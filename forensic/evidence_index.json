@@ -490,9 +490,9 @@
     },
     "extracted_docs/FORENSIC_NB166_172.md": {
       "file": "extracted_docs/FORENSIC_NB166_172.md",
-      "hash": "831fcba9",
-      "size_kb": 29.4,
-      "modified": "2026-06-22T16:29",
+      "hash": "dd8e7a4e",
+      "size_kb": 29.9,
+      "modified": "2026-06-22T16:38",
       "analyzed": "2026-06-22",
       "nb_refs": [
         "01",
@@ -581,9 +581,7 @@
         "13-11-2019"
       ],
       "todos": [
-        "AGB J.M. Blauw via Vektis (naam/initialen lookup)",
-        "Registratiedatum basisarts vs. 29-11-2019 vergelijken",
-        "Epic-providernummer achter Blauw-laborders opvragen (toegangslog)",
+        "Epic-providernummer achter Blauw-laborders opvragen (toegangslog): was zij zelf ingelogd?",
         "Nazien of er een superviserend arts medetekende op de laborders",
         "AGB J.M. Blauw Vektis-verificatie",
         "IGJ/AP/AP_driepatroon docx lezen (nooit gelezen)",
@@ -593,7 +591,8 @@
       ],
       "hypotheses": [
         "voorgeschreven ADHD-medicatie gehercodeerd tot drugsmisbruik.",
-        "DSM V diagnose concentratieproblemen\". Brief vermeldt:"
+        "DSM V diagnose concentratieproblemen\". Brief vermeldt:",
+        "** Blauw was wél geldig geregistreerd op 29-11-2019."
       ],
       "bewijs_weight": "PENDING",
       "spoor": "BEIDE (check scheiding!)",
@@ -1242,9 +1241,9 @@
     },
     "forensic/pipeline.py": {
       "file": "forensic/pipeline.py",
-      "hash": "02de4649",
-      "size_kb": 12.2,
-      "modified": "2026-06-22T15:41",
+      "hash": "b03c94c2",
+      "size_kb": 17.2,
+      "modified": "2026-06-22T16:39",
       "analyzed": "2026-06-22",
       "nb_refs": [
         "36",
@@ -1293,6 +1292,7 @@
         "29-11-2019"
       ],
       "todos": [
+        "{fu}\")",
         "{todo}\")"
       ],
       "hypotheses": [],
@@ -1348,9 +1348,9 @@
     },
     "forensic/evidence_index.json": {
       "file": "forensic/evidence_index.json",
-      "hash": "1c0d0527",
-      "size_kb": 41.7,
-      "modified": "2026-06-22T15:44",
+      "hash": "ebfdfae1",
+      "size_kb": 46.1,
+      "modified": "2026-06-22T16:30",
       "analyzed": "2026-06-22",
       "nb_refs": [
         "36",
@@ -1374,7 +1374,8 @@
         "165",
         "166",
         "168",
-        "172"
+        "172",
+        "173"
       ],
       "legal_refs": [
         "AVG art. 5 (beginselen verwerking)",
@@ -1486,6 +1487,7 @@
     "van misbruik\" als reden voor medicatiestop in december 2018 — maar het crisislog van dezelfde dag beschrijft geen enkel objectief bewijs voor dit vermoeden: alleen een uitspraak van \"Psyq psychiater L",
     "voorgeschreven ADHD-medicatie gehercodeerd tot drugsmisbruik.",
     "DSM V diagnose concentratieproblemen\". Brief vermeldt:",
+    "** Blauw was wél geldig geregistreerd op 29-11-2019.",
     "misbruik en toename onrust\" | PsyQ-brief 28-02-2019 (zie NB-136) |",
     "misbruik\" dateert van december 2018 (zie NB-136), maar Van der Meij registreerde P19.01 al op 01-10-2018",
     "### NB-136a — PsyQ brief 08-03-2018 (Gulikers → Burlage): EERSTE PSYQ-CONTACT, ADHD ONLY, GEEN F19",
@@ -1505,15 +1507,14 @@
     "Vektis-registratiedatum vergelijken met 29-11-2019",
     "Verifiëren of Blauw ooit een specialismelabel had dat orthopedisch/internistisch past bij de lab-ordening",
     "Toegangslog opvragen: welk providernummer/Epic-ID staat achter de Blauw-laborders?",
-    "AGB J.M. Blauw via Vektis (naam/initialen lookup)",
-    "Registratiedatum basisarts vs. 29-11-2019 vergelijken",
-    "Epic-providernummer achter Blauw-laborders opvragen (toegangslog)",
+    "Epic-providernummer achter Blauw-laborders opvragen (toegangslog): was zij zelf ingelogd?",
     "Nazien of er een superviserend arts medetekende op de laborders",
     "AGB J.M. Blauw Vektis-verificatie",
     "IGJ/AP/AP_driepatroon docx lezen (nooit gelezen)",
     "WERKDOCUMENT bijwerken met NB-173",
     "Parnassia deadline **28-06-2026** (6 dagen!)",
     "Actor 470154242 identificeren",
+    "{fu}\")",
     "{todo}\")"
   ],
   "last_updated": "2026-06-22"

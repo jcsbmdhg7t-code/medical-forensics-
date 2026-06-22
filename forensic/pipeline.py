@@ -5,7 +5,7 @@ Leest extracted_docs/ recursief, genereert index + Excel + todo-lijst.
 Read-only op bronbestanden. Output naar reports/.
 """
 
-import os, re, json, datetime, hashlib
+import os, re, json, datetime, hashlib, textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -134,6 +134,112 @@ def extract_from_file(path):
         result["summary"] = text.strip()[:200].replace('\n', ' ')
 
     return result
+
+# ── Diepte-analyse bij patroondetectie ────────────────────────────────────
+
+# Patronen die een volledige diepte-analyse triggeren
+DEPTH_TRIGGERS = {
+    "vierpatroon_bevoegdheid": {
+        "pattern": r"(NB-173|J\.M\.\s*Blauw|84114458|basisarts.*29-11-2019)",
+        "label":   "Bevoegdheidspatroon vierpatroon",
+        "followup": [
+            "Controleer alle andere laborders in het dossier: zijn er meer zonder gedocumenteerd consult?",
+            "Zoek naar providers met enkel laborders maar geen bezoekentry in het overzicht",
+            "Vergelijk alle AGB-codes met bezoekenoverzicht — welke AGB's verschijnen ALLEEN in labs?",
+        ]
+    },
+    "nachtelijke_batch": {
+        "pattern": r"(03:34:55|04:34|nachtelijk.*batch|batch.*nachtelijk|AVG.*bevriezing.*nacht)",
+        "label":   "Nachtelijke batchoperatie",
+        "followup": [
+            "Zijn er andere tijdstippen tussen 00:00-05:00 in de XML/HAR bestanden?",
+            "Controleer of de batch-timestamps samenvallen met andere juridische momenten (verzoeken, zittingen)",
+            "Zoek naar identieke milliseconde-timestamps in meerdere documenten (verdere automatisering)",
+        ]
+    },
+    "tweemansprocedure": {
+        "pattern": r"(tweemansprocedure|NB-108|SUBSTANCEHXQNR.*Mousawi|Nota.*sluit.*Mousawi|02-10-2024.*beide)",
+        "label":   "Tweemansprocedure 02-10-2024",
+        "followup": [
+            "Zijn er andere datums waarop Nota én Mousawi beiden actief waren in het dossier?",
+            "Controleer alle SUBSTANCEHXQNR-entries: hoeveel zijn er zonder behandelrelatie?",
+            "Zoek naar andere module-combinaties die hetzelfde patroon vertonen op andere data",
+        ]
+    },
+    "tijdsdiscrepantie_agb": {
+        "pattern": r"(84126524|84115003|84107660|te vroeg|3.5.*jr|1.5.*jr|vóór.*registratie)",
+        "label":   "AGB-tijdsdiscrepantie",
+        "followup": [
+            "Zijn er nog meer AGB-codes in het dossier die niet in Vektis terugkomen?",
+            "Controleer alle providers in BEVINDING C (bezoekenoverzicht) op Vektis-registratiedatum",
+            "Zoek naar AGB-codes in de XML-bestanden die afwijken van de AANVULLEND-providers-lijst",
+        ]
+    },
+    "spoorvermenging": {
+        "pattern": r"(BEIDE.*check scheiding|Parnassia.*Spaarne|Spaarne.*Parnassia).*correspondentie",
+        "label":   "Mogelijk spoorvermenging",
+        "followup": [
+            "KRITIEK: controleer dit bestand op vermenging Parnassia/Spaarne vóór gebruik in brieven",
+        ]
+    },
+}
+
+def run_depth_analysis(findings, index):
+    """
+    Bij elk gedetecteerd patroon: schrijf een volledig diepte-analyseverslag
+    en genereer vervolgzoekopdrachten. Resultaat in reports/DIEPTE_[datum].md
+    """
+    triggered = {}  # trigger_key → list of (file, matches)
+
+    for f in findings:
+        text_check = f.get("summary","") + " ".join(f.get("nb_refs",[])) + " ".join(f.get("actors",[]))
+        # Also check the actual file content for triggers
+        fpath = ROOT / f["file"]
+        try:
+            full_text = fpath.read_text(encoding='utf-8', errors='replace')
+        except:
+            full_text = text_check
+
+        for key, cfg in DEPTH_TRIGGERS.items():
+            matches = re.findall(cfg["pattern"], full_text, re.IGNORECASE)
+            if matches:
+                if key not in triggered:
+                    triggered[key] = []
+                triggered[key].append({
+                    "file": f["file"],
+                    "matches": list(set(str(m) for m in matches))[:5],
+                    "bewijs": f.get("bewijs_weight","?"),
+                })
+
+    if not triggered:
+        return None
+
+    lines = [f"# DIEPTE-ANALYSE RAPPORT — {TODAY}",
+             f"Patronen gedetecteerd: {len(triggered)} | Gegenereerd door forensic/pipeline.py\n"]
+
+    for key, hits in triggered.items():
+        cfg = DEPTH_TRIGGERS[key]
+        lines.append(f"## {cfg['label']}")
+        lines.append(f"Gevonden in {len(hits)} bestand(en):\n")
+        for h in hits:
+            lines.append(f"- `{Path(h['file']).name}` (bewijs: {h['bewijs']}) — matches: {', '.join(h['matches'])}")
+
+        lines.append("\n### Vervolgonderzoek vereist")
+        for fu in cfg["followup"]:
+            lines.append(f"- [ ] {fu}")
+        lines.append("")
+
+    # Cross-patroon verbanden
+    if len(triggered) > 1:
+        lines.append("## Kruisverbanden gedetecteerde patronen")
+        keys = list(triggered.keys())
+        lines.append(f"Meerdere patronen ({', '.join(keys)}) actief in zelfde dossier.")
+        lines.append("Dit vergroot de kans op een gecoördineerd patroon ten opzichte van toevallige fouten.")
+        lines.append("Aanbeveling: formaliseer causale verbanden in WERKDOCUMENT vóór volgende zitting.\n")
+
+    path = REPORTS / f"DIEPTE_{TODAY}.md"
+    path.write_text('\n'.join(lines), encoding='utf-8')
+    return path
 
 def scan_directory(directory):
     """Recursively scan all readable files."""
@@ -268,6 +374,11 @@ def run():
     # Reports
     todo_path = generate_daily_todo(index)
     index_path = generate_daily_index_md(index)
+
+    # Diepte-analyse bij patroondetectie
+    depth_path = run_depth_analysis(findings, index)
+    if depth_path:
+        print(f"  Diepte: {depth_path}")
 
     # Excel (separate module)
     try:
