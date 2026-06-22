@@ -118,6 +118,7 @@
   <button class="btn btn-secondary" onclick="exportCSV()">💾 CSV</button>
   <button class="btn btn-secondary" onclick="exportJSON()">📋 JSON</button>
   <button class="btn btn-secondary" onclick="doClear()">✕ Wis</button>
+  <button class="btn btn-secondary" id="btnAll" onclick="toggleAll()" style="display:none;">👁 Toon alles</button>
   <div class="filters">
     <button class="chip active"          data-f="ALL"       onclick="setF('ALL',this)">Alles</button>
     <button class="chip c-tracker"       data-f="TRACKER"   onclick="setF('TRACKER',this)">🚨 Tracker</button>
@@ -140,7 +141,8 @@
   <div class="stat purple"><div class="n" id="s4">0</div><div class="l">Infra/Auth</div></div>
   <div class="stat yellow"><div class="n" id="s5">0</div><div class="l">Verzekeraar</div></div>
   <div class="stat orange"><div class="n" id="s6">0</div><div class="l">Test-omgeving</div></div>
-  <div class="stat">       <div class="n" id="s7">0</div><div class="l">Totaal</div></div>
+  <div class="stat">       <div class="n" id="s7">0</div><div class="l">Dossier</div></div>
+  <div class="stat">       <div class="n" id="s9">0</div><div class="l">Geladen totaal</div></div>
   <div class="stat">       <div class="n" id="s8">0</div><div class="l">Zichtbaar</div></div>
 </div>
 
@@ -253,11 +255,12 @@ const JMAP = {
 // ============================================================
 // STATE
 // ============================================================
-let allRaw = [];    // alle entries (ook ongefilterd)
-let relevant = [];  // enkel gefilterde entries
+let allRaw = [];
+let relevant = [];
 let activeF = 'ALL';
-let selDomain = null;
-let customDoms = [];
+let selDom = null;
+const customDomList = [];
+let showAll = false;
 
 // ============================================================
 // CATEGORISATIE
@@ -283,7 +286,7 @@ function categorise(entry) {
   for (const cat of ['ZIEKENHUIS','GGZ','HUISARTS','PGO','VERZEKER','COMM','INFRA','AUTH']) {
     if (DOM[cat].some(d => h.includes(d))) return cat;
   }
-  if (customDoms.some(d => h.includes(d))) return 'PRIMAIR';
+  if (customDomList.some(d => h.includes(d))) return 'PRIMAIR';
   return null;
 }
 
@@ -318,6 +321,7 @@ function loadHAR(file) {
 
 document.getElementById('fi').addEventListener('change', e => {
   Array.from(e.target.files).forEach(loadHAR);
+  e.target.value = '';
 });
 
 // ============================================================
@@ -446,27 +450,50 @@ function setF(cat, el) {
   render();
 }
 
-function visible() {
+
+function toggleAll() {
+  showAll = !showAll;
+  const btn = document.getElementById('btnAll');
+  btn.textContent = showAll ? '🔍 Alleen dossier' : '👁 Toon alles';
+  btn.style.background = showAll ? '#1e3a5f' : '';
+  render();
+}
+
+function visibleList() {
+  const source = showAll ? allRaw : relevant;
   const q = document.getElementById('sq').value.toLowerCase();
-  return relevant.filter(e => {
-    const cm = activeF === 'ALL' || e._cat === activeF;
+  return source.filter(e => {
+    const cm = activeF === 'ALL' || e._cat === activeF || (showAll && !e._cat && activeF === 'ALL');
     const u = (e.request?.url || e.url || '').toLowerCase();
-    const qm = !q || u.includes(q) || (e._cat||'').toLowerCase().includes(q) ||
+    const qm = !q || u.includes(q) || (e._cat||'overig').toLowerCase().includes(q) ||
       String(e.response?.status||'').includes(q) || (e.request?.method||'').toLowerCase().includes(q);
     return cm && qm;
   });
 }
 
 function render() {
-  const vis = visible();
+  const vis = visibleList();
   document.getElementById('s8').textContent = vis.length;
   const cont = document.getElementById('results');
+  const btn = document.getElementById('btnAll');
 
-  if (!relevant.length) {
+  if (!allRaw.length) {
+    btn.style.display = 'none';
     cont.innerHTML = `<div class="empty"><div class="ico">📡</div>
       <h2>Sleep een bestand hiernaartoe</h2>
       <p><strong>HAR:</strong> Proxyman → requests → rechtermuisknop → Export as HAR<br>
       <strong>ZIP:</strong> sleep je <code>.zip</code> of <code>.proxymanlogv2</code> direct</p></div>`;
+    return;
+  }
+
+  btn.style.display = 'inline-block';
+
+  if (!relevant.length && !showAll) {
+    cont.innerHTML = `<div class="empty"><div class="ico">🔎</div>
+      <h2>${allRaw.length} requests geladen — 0 dossier-domeinen gevonden</h2>
+      <p>De geladen bestanden bevatten geen van de 45 bekende domeinen.<br>
+      Klik <strong>👁 Toon alles</strong> om alle requests te zien,<br>
+      of <strong>🌐 Ontdek domeinen</strong> om nieuwe domeinen toe te voegen aan de filter.</p></div>`;
     return;
   }
   if (!vis.length) {
@@ -554,15 +581,13 @@ function updateStats() {
   document.getElementById('s5').textContent = c('VERZEKER');
   document.getElementById('s6').textContent = c('TESTENV');
   document.getElementById('s7').textContent = relevant.length;
-  document.getElementById('s8').textContent = visible().length;
+  document.getElementById('s9').textContent = allRaw.length;
+  document.getElementById('s8').textContent = visibleList().length;
 }
 
 // ============================================================
 // DOMAIN DISCOVERY
 // ============================================================
-let selDom = null;
-const customDomList = [];
-
 function allKnown() {
   return Object.values(DOM).flat().concat(customDomList);
 }
@@ -617,7 +642,7 @@ function addCustom() {
 // EXPORT
 // ============================================================
 function exportCSV() {
-  const rows = visible();
+  const rows = visibleList();
   if (!rows.length) return alert('Geen rijen.');
   const hdr = ['Categorie','Methode','URL','Status','Juridische_Grondslag','Bestand','Tijdstip'];
   const lines = [hdr.join(';')].concat(rows.map(e => [
@@ -630,7 +655,7 @@ function exportCSV() {
 }
 
 function exportJSON() {
-  const rows = visible();
+  const rows = visibleList();
   if (!rows.length) return alert('Geen rijen.');
   dl('proxyman_dossier_filter.json', JSON.stringify(rows.map(e=>({
     categorie:e._cat, url:e.request?.url||e.url, methode:e.request?.method,
@@ -646,7 +671,9 @@ function dl(name, content, mime) {
 }
 
 function doClear() {
-  allRaw = []; relevant = []; selDom = null;
+  allRaw = []; relevant = []; selDom = null; showAll = false;
+  const btn = document.getElementById('btnAll');
+  if (btn) { btn.textContent = '👁 Toon alles'; btn.style.background = ''; }
   updateStats(); render(); renderDisc();
 }
 
