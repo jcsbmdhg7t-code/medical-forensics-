@@ -490,9 +490,9 @@
     },
     "extracted_docs/FORENSIC_NB166_172.md": {
       "file": "extracted_docs/FORENSIC_NB166_172.md",
-      "hash": "b11f602e",
-      "size_kb": 28.2,
-      "modified": "2026-06-22T13:16",
+      "hash": "831fcba9",
+      "size_kb": 29.4,
+      "modified": "2026-06-22T16:29",
       "analyzed": "2026-06-22",
       "nb_refs": [
         "01",
@@ -584,7 +584,12 @@
         "AGB J.M. Blauw via Vektis (naam/initialen lookup)",
         "Registratiedatum basisarts vs. 29-11-2019 vergelijken",
         "Epic-providernummer achter Blauw-laborders opvragen (toegangslog)",
-        "Nazien of er een superviserend arts medetekende op de laborders"
+        "Nazien of er een superviserend arts medetekende op de laborders",
+        "AGB J.M. Blauw Vektis-verificatie",
+        "IGJ/AP/AP_driepatroon docx lezen (nooit gelezen)",
+        "WERKDOCUMENT bijwerken met NB-173",
+        "Parnassia deadline **28-06-2026** (6 dagen!)",
+        "Actor 470154242 identificeren"
       ],
       "hypotheses": [
         "voorgeschreven ADHD-medicatie gehercodeerd tot drugsmisbruik.",
@@ -1310,6 +1315,126 @@
       "bewijs_weight": "PENDING",
       "spoor": "ONBEKEND",
       "summary": "#!/usr/bin/env python3 \"\"\"CLI: forensic report for single .dat or .proxymanlogv2 archive.\"\"\" import sys from .multi import analyse_archive from datetime import datetime  SEV = {\"CRITICAL\": 0, \"HIGH\": "
+    },
+    "extracted_docs/HANDOFF_2026-06-22.md": {
+      "file": "extracted_docs/HANDOFF_2026-06-22.md",
+      "hash": "d5224a56",
+      "size_kb": 4.2,
+      "modified": "2026-06-22T16:30",
+      "analyzed": "2026-06-22",
+      "nb_refs": [
+        "148",
+        "160",
+        "173"
+      ],
+      "legal_refs": [],
+      "actors": [
+        "A. al-Mousawi (AGB 84126524)",
+        "J.P.J. van der List (AGB 84115003)",
+        "N.M. Nota (AGB 84107660)",
+        "J.M. Blauw (AGB pending)"
+      ],
+      "dates_found": [
+        "22-06-2026",
+        "23-06-2026",
+        "28-06-2026",
+        "29-11-2019"
+      ],
+      "todos": [],
+      "hypotheses": [],
+      "bewijs_weight": "PENDING",
+      "spoor": "Parnassia/GGZ",
+      "summary": "HANDOFF — Sessie 22-06-2026 (5b4be507)"
+    },
+    "forensic/evidence_index.json": {
+      "file": "forensic/evidence_index.json",
+      "hash": "1c0d0527",
+      "size_kb": 41.7,
+      "modified": "2026-06-22T15:44",
+      "analyzed": "2026-06-22",
+      "nb_refs": [
+        "36",
+        "108",
+        "132",
+        "134",
+        "136",
+        "137",
+        "138",
+        "139",
+        "140",
+        "144",
+        "145",
+        "149",
+        "150",
+        "154",
+        "155",
+        "156",
+        "159",
+        "162",
+        "165",
+        "166",
+        "168",
+        "172"
+      ],
+      "legal_refs": [
+        "AVG art. 5 (beginselen verwerking)",
+        "AVG art. 15 (inzagerecht)",
+        "AVG art. 18 (beperking verwerking)",
+        "WGBO art. 7:454 (dossierplicht)",
+        "WGBO art. 7:456 (inzage patiënt)",
+        "Wet BIG art. 36 (behandelrelatie)",
+        "Wet BIG art. 47 (tuchtrecht)",
+        "Art. 225 Sr (valsheid in geschrifte)",
+        "Art. 282 Sr (vrijheidsberoving)",
+        "Art. 6:170 BW (werkgeversaansp.)",
+        "NEN 7510 (informatiebeveiliging zorg)",
+        "NEN 7513 (logging zorgaanbieders)"
+      ],
+      "actors": [
+        "A. al-Mousawi (AGB 84126524)",
+        "J.P.J. van der List (AGB 84115003)",
+        "N.M. Nota (AGB 84107660)",
+        "J.M. Blauw (AGB pending)",
+        "M. van der Kroon (MRK) (FACILITAIR)",
+        "K.J. Burlage (AGB 67480 (deceased))",
+        "D. Kox (KNO-arts)",
+        "J.E.L.M. de Ree (Reumatoloog)",
+        "S.F.L. van Lelyveld (Internist)",
+        "Verlaan (Huisarts)",
+        "Hoppinger B.V. (Webontwikkelaar)"
+      ],
+      "dates_found": [
+        "01-01-2012",
+        "01-01-2019",
+        "01-01-2020",
+        "01-01-2022",
+        "01-01-2024",
+        "01-10-2018",
+        "01-10-2024",
+        "01-12-2025",
+        "02-01-2026",
+        "02-03-2026",
+        "02-09-2024",
+        "02-10-2009",
+        "02-10-2024",
+        "02-12-2025",
+        "03-03-2026",
+        "03-08-2026",
+        "03-12-2017",
+        "03-12-2019",
+        "03-12-2025",
+        "04-01-2018"
+      ],
+      "todos": [],
+      "hypotheses": [
+        "2 in NB-134B (vorige praktijk → ongeautoriseerde toegang na overdracht) is daarmee de meest waarschijnlijke verklaring.\"",
+        "alleen een uitspraak van \\\"Psyq psychiater L\"",
+        "2 in NB-134B (vorige praktijk → ongeautoriseerde toegang na overdracht) is daarmee de meest waarschijnlijke verklaring.\",",
+        "alleen een uitspraak van \\\"Psyq psychiater L\","
+      ],
+      "bewijs_weight": "PENDING",
+      "spoor": "BEIDE (check scheiding!)",
+      "summary": "{   \"created\": \"2026-06-22\",   \"entries\": {     \"extracted_docs/FORENSIC_AANVULLEND.md\": {       \"file\": \"extracted_docs/FORENSIC_AANVULLEND.md\",       \"hash\": \"2484c37a\",       \"size_kb\": 12.4,      "
     }
   },
   "causal_map": [
@@ -1369,7 +1494,11 @@
     "(origin: P19.01 Van der Meij 01-10-2018, later F19.1 Spaarne)",
     "misbruik\" | Direct gevolg P19.01-registratie |",
     "dat zijn oorsprong vindt in P19.01 (Van der Meij, 01-10-2018) en later F19.1 (Spaarne Gasthuis).",
-    "\"heeft dat op internet gelezen\""
+    "\"heeft dat op internet gelezen\"",
+    "2 in NB-134B (vorige praktijk → ongeautoriseerde toegang na overdracht) is daarmee de meest waarschijnlijke verklaring.\"",
+    "alleen een uitspraak van \\\"Psyq psychiater L\"",
+    "2 in NB-134B (vorige praktijk → ongeautoriseerde toegang na overdracht) is daarmee de meest waarschijnlijke verklaring.\",",
+    "alleen een uitspraak van \\\"Psyq psychiater L\","
   ],
   "todos": [
     "AGB J.M. Blauw opzoeken via Vektis (zoekveld naam + evt. geboortedatum)",
@@ -1380,6 +1509,11 @@
     "Registratiedatum basisarts vs. 29-11-2019 vergelijken",
     "Epic-providernummer achter Blauw-laborders opvragen (toegangslog)",
     "Nazien of er een superviserend arts medetekende op de laborders",
+    "AGB J.M. Blauw Vektis-verificatie",
+    "IGJ/AP/AP_driepatroon docx lezen (nooit gelezen)",
+    "WERKDOCUMENT bijwerken met NB-173",
+    "Parnassia deadline **28-06-2026** (6 dagen!)",
+    "Actor 470154242 identificeren",
     "{todo}\")"
   ],
   "last_updated": "2026-06-22"
