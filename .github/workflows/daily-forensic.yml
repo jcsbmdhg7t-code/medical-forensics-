@@ -2,27 +2,19 @@ name: Dagelijkse forensische analyse
 
 on:
   schedule:
-    # 06:00 CET dagelijks (05:00 UTC winter, 04:00 UTC zomer)
     - cron: '0 5 * * *'
   push:
     branches:
       - 'claude/**'
-      - 'main'
+      - main
   pull_request:
     branches:
       - main
       - 'claude/**'
   workflow_dispatch:
-    inputs:
-      include_drive_sync:
-        description: 'Google Drive sync uitvoeren'
-        required: false
-        default: 'true'
-        type: boolean
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   forensic-pipeline:
@@ -33,14 +25,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: claude/decorator-forensic-analysis-tokens-gxvcxw
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Python setup
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+          cache: pip
 
       - name: Installeer dependencies
         run: pip install openpyxl
@@ -52,47 +43,32 @@ jobs:
           key: extracted-docs-${{ github.run_id }}
           restore-keys: extracted-docs-
 
-      - name: Herstel evidence index
+      - name: Herstel evidence index cache
         uses: actions/cache@v4
         with:
           path: forensic/evidence_index.json
           key: evidence-index-${{ github.run_id }}
           restore-keys: evidence-index-
 
-      # ── Stap 1: Lokale forensische analyse ──────────────────────────────
-      - name: Forensische pipeline (lokale bestanden)
+      - name: Forensische pipeline
         run: python3 -m forensic.pipeline
 
-      # ── Stap 2: Drive sync prompts voorbereiden (geen auto-uitvoering) ──
-      - name: Drive sync prompts voorbereiden
-        run: |
-          python3 -m forensic.drive_sync || echo "Drive sync overgeslagen (niet-kritiek)"
-          echo "Handmatige stap: voer sync-prompts uit in een Claude-sessie"
+      - name: Drive sync prompts (niet-kritiek)
+        run: python3 -m forensic.drive_sync || true
 
-      # ── Stap 3: Genereer definitief Excel-rapport ────────────────────
-      - name: Genereer Excel rapport
-        run: python3 -m forensic.excel_report
+      - name: Excel rapport
+        run: python3 -m forensic.excel_report || true
 
-      # ── Stap 5: Commit rapporten (alleen bij schedule/dispatch, niet bij PR) ──
-      - name: Commit rapporten
-        if: github.event_name != 'pull_request'
+      - name: Commit manifest en index
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           git config user.name "Claude"
           git config user.email "noreply@anthropic.com"
-
           TODAY=$(date +%Y-%m-%d)
-          BRANCH="${{ github.ref_name }}"
-
           git add forensic/evidence_index.json forensic/SHA256_MANIFEST.json 2>/dev/null || true
-
           if git diff --staged --quiet; then
-            echo "Geen nieuwe rapporten om te committen"
+            echo "Geen wijzigingen te committen"
           else
-            git commit -m "forensic: dagrapport ${TODAY} — pipeline auto-update
-
-Gegenereerd door dagelijkse forensische pipeline.
-Bevat: SHA-256 manifest, index, causale kaart, hypothesen, todo-lijst.
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
-            git push origin "${BRANCH}"
+            git commit -m "forensic: dagrapport ${TODAY}"
+            git push origin HEAD
           fi
