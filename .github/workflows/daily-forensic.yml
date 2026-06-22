@@ -4,6 +4,14 @@ on:
   schedule:
     # 06:00 CET dagelijks (05:00 UTC winter, 04:00 UTC zomer)
     - cron: '0 5 * * *'
+  push:
+    branches:
+      - 'claude/**'
+      - 'main'
+  pull_request:
+    branches:
+      - main
+      - 'claude/**'
   workflow_dispatch:
     inputs:
       include_drive_sync:
@@ -58,24 +66,24 @@ jobs:
       # ── Stap 2: Drive sync prompts voorbereiden (geen auto-uitvoering) ──
       - name: Drive sync prompts voorbereiden
         run: |
-          python3 -m forensic.drive_sync
-          echo "Sync-prompts klaar in forensic/_sync_prompt_*.txt"
-          echo "Handmatige stap: voer 'claude -p \"\$(cat forensic/_sync_prompt_context_voor_ai.txt)\"' uit in een Claude-sessie"
+          python3 -m forensic.drive_sync || echo "Drive sync overgeslagen (niet-kritiek)"
+          echo "Handmatige stap: voer sync-prompts uit in een Claude-sessie"
 
       # ── Stap 3: Genereer definitief Excel-rapport ────────────────────
       - name: Genereer Excel rapport
         run: python3 -m forensic.excel_report
 
-      # ── Stap 5: Commit rapporten ──────────────────────────────────────
+      # ── Stap 5: Commit rapporten (alleen bij schedule/dispatch, niet bij PR) ──
       - name: Commit rapporten
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "Claude"
           git config user.email "noreply@anthropic.com"
 
           TODAY=$(date +%Y-%m-%d)
+          BRANCH="${{ github.ref_name }}"
 
-          # Voeg alleen reports/ toe (niet extracted_docs — dat is gitignored)
-          git add reports/ forensic/evidence_index.json 2>/dev/null || true
+          git add forensic/evidence_index.json forensic/SHA256_MANIFEST.json 2>/dev/null || true
 
           if git diff --staged --quiet; then
             echo "Geen nieuwe rapporten om te committen"
@@ -83,8 +91,8 @@ jobs:
             git commit -m "forensic: dagrapport ${TODAY} — pipeline auto-update
 
 Gegenereerd door dagelijkse forensische pipeline.
-Bevat: index, tijdlijn, causale kaart, hypothesen, todo-lijst, Excel.
+Bevat: SHA-256 manifest, index, causale kaart, hypothesen, todo-lijst.
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
-            git push origin claude/decorator-forensic-analysis-tokens-gxvcxw
+            git push origin "${BRANCH}"
           fi

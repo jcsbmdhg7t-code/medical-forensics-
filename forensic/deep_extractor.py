@@ -223,6 +223,76 @@ def extract_exif(path: Path, audit_log) -> list:
 
     return findings
 
+
+# Patronen voor verborgen/transparante tekst in XML/HTML/DOCX/PDF
+HIDDEN_TEXT_PATTERNS = [
+    # Word OOXML: onzichtbare tekst
+    (r'<w:vanish/?>',                          'w:vanish (verborgen tekst Word)'),
+    (r'<w:color\s+w:val="(?:FFFFFF|ffffff|white|F{6})"', 'witte tekst (w:color FFFFFF)'),
+    (r'<w:sz\s+w:val="[01]"',                  'font-grootte ≤1 (sub-pixel tekst)'),
+    # HTML/CSS stealth
+    (r'(?:color|colour)\s*:\s*(?:#fff{3,6}|white|rgba?\([^)]*,\s*0\.?0*\s*\))', 'CSS witte/transparante kleur'),
+    (r'(?:opacity|visibility)\s*:\s*(?:0(?:\.0+)?|hidden)',   'CSS opacity:0 / visibility:hidden'),
+    (r'display\s*:\s*none',                    'CSS display:none'),
+    (r'font-size\s*:\s*0',                     'CSS font-size:0'),
+    (r'(?:left|top|margin)\s*:\s*-\d{3,}px',  'tekst buiten beeld (negatieve positie)'),
+    (r'z-index\s*:\s*-\d+',                    'z-index negatief (tekst onder laag)'),
+    # PDF raw tekst stealth
+    (rb'Tf\s+0\s+Tf',                          'PDF font-grootte 0'),
+    (rb'rg\s+1\s+1\s+1\s+rg',                 'PDF witte tekstvulling (1 1 1 rg)'),
+    (rb'0\s+0\s+0\s+0\s+k\b.*?Tj',            'PDF CMYK 0000 (wit op wit)'),
+    (rb'BT.*?(\d+)\s+(\d+)\s+Td.*?ET',        'PDF tekst buiten paginagebied (check coords)'),
+]
+
+def detect_hidden_text(data: bytes, source: str, audit_log) -> list:
+    """Detecteer verborgen/transparante tekst in XML, HTML, DOCX, PDF."""
+    findings = []
+    is_binary = source.endswith('.pdf')
+
+    for pattern, label in HIDDEN_TEXT_PATTERNS:
+        if isinstance(pattern, bytes):
+            if not is_binary and not source.endswith('.bin'):
+                continue
+            hits = re.findall(pattern, data, re.DOTALL)
+        else:
+            try:
+                text = data.decode('utf-8', errors='replace')
+            except Exception:
+                continue
+            hits = re.findall(pattern, text, re.IGNORECASE)
+
+        if hits:
+            log_entry(audit_log, "FIND",
+                      f"Verborgen tekst [{label}] in {Path(source).name}: {len(hits)} treffer(s)",
+                      {"source": source, "type": "hidden_text", "technique": label,
+                       "count": len(hits)})
+            findings.append({"type": "hidden_text", "source": source,
+                             "technique": label, "count": len(hits)})
+
+    # PDF-specifiek: kleurbalken met ingesloten data (jouw groene balk-vondst)
+    if source.endswith('.pdf') or source.endswith('.bin'):
+        colored_text_blocks = re.findall(
+            rb'(\d+(?:\.\d+)?\s+\d+(?:\.\d+)?\s+\d+(?:\.\d+)?)\s+rg(.*?)Tj',
+            data, re.DOTALL)
+        for color_cmd, text_block in colored_text_blocks[:20]:
+            # Detecteer kleur die overeenkomt met achtergrond (niet-zwart, niet-wit)
+            parts = color_cmd.decode('ascii','ignore').split()
+            if len(parts) == 3:
+                r, g, b = float(parts[0]), float(parts[1]), float(parts[2])
+                # Kleur is NIET zwart (niet ≈0,0,0) en NIET wit (niet ≈1,1,1)
+                if not (r < 0.1 and g < 0.1 and b < 0.1) and not (r > 0.9 and g > 0.9 and b > 0.9):
+                    txt = text_block.decode('latin-1', errors='replace').strip()[:80]
+                    if txt:
+                        log_entry(audit_log, "WARN",
+                                  f"PDF tekst in gekleurde balk (RGB {r:.2f},{g:.2f},{b:.2f}): {txt!r}",
+                                  {"source": source, "type": "colored_bar_text",
+                                   "rgb": [r, g, b], "text_snippet": txt})
+                        findings.append({"type": "colored_bar_text", "source": source,
+                                        "rgb": [r, g, b], "snippet": txt})
+
+    return findings
+
+
 def analyse_file(path: Path, audit_log) -> list:
     """Analyseer één bestand op alle diepte-patronen."""
     path = Path(path)
@@ -233,14 +303,42 @@ def analyse_file(path: Path, audit_log) -> list:
 
     if ext in MATRYOSHKA_EXTENSIONS:
         findings += extract_zip_layer(path, audit_log)
+        # Matryoshka kan ook hidden text bevatten in de XML-lagen
+        try:
+            data = path.read_bytes()
+            findings += detect_hidden_text(data, str(path), audit_log)
+        except Exception:
+            pass
     elif ext in ('.xml','.html','.htm','.txt','.json','.har'):
         try:
             data = path.read_bytes()
             findings += extract_base64(data, str(path), audit_log)
+            findings += detect_hidden_text(data, str(path), audit_log)
         except Exception as e:
             log_entry(audit_log, "ERR ", f"Leesbaar fout {path.name}: {e}")
     elif ext in ('.png','.jpg','.jpeg','.tif','.bmp','.gif'):
         findings += extract_exif(path, audit_log)
+    elif ext == '.pdf':
+        try:
+            data = path.read_bytes()
+            findings += detect_hidden_text(data, str(path), audit_log)
+            # PDF kan ook ZIP bevatten (jouw vondst: PDF→ZIP→bestanden)
+            zip_sig = data.find(b'PK\x03\x04')
+            if zip_sig != -1:
+                log_entry(audit_log, "FIND",
+                          f"ZIP-handtekening in PDF op offset {zip_sig}: mogelijk ingesloten archief",
+                          {"source": str(path), "type": "zip_in_pdf", "offset": zip_sig})
+                findings.append({"type": "zip_in_pdf", "source": str(path), "offset": zip_sig})
+                # Sla het ZIP-deel op voor nadere analyse
+                zip_data = data[zip_sig:]
+                h = sha256_bytes(zip_data)
+                tmp = REPORTS / f"_tmp_pdf_zip_{h[:8]}.zip"
+                tmp.write_bytes(zip_data)
+                nested = extract_zip_layer(tmp, audit_log, depth=1, parent=path.name)
+                findings.extend(nested)
+                tmp.unlink(missing_ok=True)
+        except Exception as e:
+            log_entry(audit_log, "ERR ", f"PDF-analyse fout {path.name}: {e}")
 
     return findings
 
@@ -263,7 +361,7 @@ def run_deep_analysis(target_dir=None, audit_log=None):
         if any(ex in path.parts for ex in {'.git','__pycache__'}):
             continue
         ext = path.suffix.lower()
-        if ext in MATRYOSHKA_EXTENSIONS | {'.xml','.json','.html','.har','.png','.jpg','.jpeg','.txt'}:
+        if ext in MATRYOSHKA_EXTENSIONS | {'.xml','.json','.html','.har','.png','.jpg','.jpeg','.txt','.pdf','.htm'}:
             findings = analyse_file(path, audit_log)
             all_findings.extend(findings)
 
