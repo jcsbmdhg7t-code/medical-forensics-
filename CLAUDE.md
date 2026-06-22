@@ -37,13 +37,34 @@ Forensisch-juridisch onderzoek door data-subject Isabel Grothe (BSN 215672185) n
 - [ ] NB-148 Van der List formaliseren
 
 ## Token-efficiëntie — gedragsregels
-- Geef GEEN samenvattingen van wat je net deed tenzij gevraagd.
+
+### Standaardmodus: BEKNOPT
+- Eerste antwoord is altijd zo kort als de taak toelaat.
+- Geen samenvattingen van wat je net deed tenzij gevraagd.
 - Geen herhaling van al vastgestelde feiten als inleiding.
-- Antwoorden: zo kort als de taak toelaat. Tabellen > opsommingen > proza.
-- Gebruik subagents (Agent-tool met `model="claude-haiku-4-5-20251001"`) voor: bestandslees-taken, grep-zoekopdrachten, eenvoudige extracties.
-- Gebruik het hoofdmodel (Opus/Sonnet) voor: juridische redenering, NB-formulering, brieven.
-- Sla tussenresultaten altijd op in `extracted_docs/` zodat ze in een volgende sessie direct leesbaar zijn zonder heranalyse.
-- Als een taak groot is en je tokenbudget krap: formuleer een handoff-blok (`extracted_docs/HANDOFF_[datum].md`) en meld dit expliciet.
+- Tabellen en opsommingen boven proza.
+- Geef GEEN uitleg over waarom je iets doet — doe het gewoon.
+
+### Uitbreidingsmodus: op verzoek
+De gebruiker typt één van deze signalen om meer detail te krijgen:
+- `?` of `meer` → geef de volledige analyse/redenering
+- `stap voor stap` → loop door elke stap expliciet
+- `code block` → geef de volledige output in een code block
+- `juridisch` → geef de volledige juridische redenering met artikelen
+
+### Token-besparend ja/nee
+- Korter antwoord = minder output-tokens = BESPARING ✓
+- Uitbreiding op verzoek = extra beurt = kleine extra kost, maar alleen als nodig
+- Netto besparing als je in >50% van gevallen NIET uitbreidt
+
+### Model-selectie
+- Gebruik subagents (Agent-tool met `model="claude-haiku-4-5-20251001"`) voor:
+  bestandslees-taken, grep-zoekopdrachten, eenvoudige extracties, bestandslijsten
+- Gebruik hoofdmodel (Opus/Sonnet) voor:
+  juridische redenering, NB-formulering, brieven, causale-keten-analyse
+- Sla tussenresultaten altijd op in `extracted_docs/` zodat volgende sessie
+  direct kan inladen zonder heranalyse.
+- Als tokenbudget krap: schrijf `extracted_docs/HANDOFF_[datum].md` en meld dit.
 
 ## Spoorscheiding (binding)
 - Parnassia-spoor: NOOIT mengen met Spaarne/huisarts-spoor in correspondentie.
