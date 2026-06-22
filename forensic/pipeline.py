@@ -358,39 +358,126 @@ def generate_daily_index_md(index):
 # ── Main ───────────────────────────────────────────────────────────────────
 
 def run():
-    print(f"[{TODAY}] Forensische pipeline start")
+    import datetime as _dt
+    ts_start = _dt.datetime.utcnow().isoformat() + "Z"
+    print(f"[{TODAY}] Forensische pipeline start — {ts_start}")
 
-    # Scan
+    audit_lines = [
+        f"# FORENSISCH AUDIT-LOG — {TODAY}",
+        f"Gegenereerd: {ts_start} UTC | forensic/pipeline.py",
+        f"SHA-256 manifest + diepte-extractie + index inbegrepen.",
+        "",
+        "---",
+        "",
+        "## 1. SHA-256 MANIFEST (bewijs-integriteitscontrole)",
+        "",
+    ]
+
+    # ── SHA-256 manifest ──────────────────────────────────────────────────
+    try:
+        from forensic.hash_manifest import run as manifest_run, MANIFEST
+        added, removed, changed = manifest_run()
+        if changed:
+            audit_lines.append(f"⚠️  **GEWIJZIGDE BESTANDEN: {len(changed)}** — mogelijke bewijs-manipulatie")
+            for f, d in sorted(changed.items()):
+                audit_lines.append(f"  - `{f}` | oud: `{d['old_hash'][:16]}…` → nieuw: `{d['new_hash'][:16]}…`")
+        elif removed:
+            audit_lines.append(f"❌  **VERWIJDERDE BESTANDEN: {len(removed)}**")
+            for f in sorted(removed):
+                audit_lines.append(f"  - `{f}`")
+        else:
+            audit_lines.append(f"✅  Alle bestanden intact — geen SHA-256 afwijkingen.")
+        if added:
+            audit_lines.append(f"✅  Nieuwe bestanden: {len(added)}")
+        audit_lines.append(f"  Manifest: `{MANIFEST}`")
+    except Exception as e:
+        audit_lines.append(f"  ERR manifest: {e}")
+        print(f"  Manifest-fout: {e}")
+
+    audit_lines += ["", "---", "", "## 2. DIEPTE-EXTRACTIE (matryoshka / base64 / EXIF)", ""]
+
+    # ── Diepte-extractie ──────────────────────────────────────────────────
+    deep_findings = []
+    deep_audit = []
+    try:
+        from forensic.deep_extractor import run_deep_analysis
+        deep_findings, deep_audit = run_deep_analysis(EXTRACTED, deep_audit)
+        audit_lines.append(f"Artefacten gevonden: **{len(deep_findings)}**")
+        audit_lines.append("")
+        # Render full deep audit log
+        audit_lines.append("### Volledige operatie-log")
+        audit_lines.append("")
+        audit_lines.append("| Tijd (UTC) | Level | Melding |")
+        audit_lines.append("|------------|-------|---------|")
+        for entry in deep_audit:
+            ts  = entry.get("ts", "")[:19]
+            lvl = entry.get("level", "INFO")
+            msg = entry.get("msg", "").replace("|", "\\|")
+            audit_lines.append(f"| {ts} | {lvl} | {msg} |")
+
+        if deep_findings:
+            audit_lines += ["", "### Gevonden artefacten", "",
+                            "| Type | Bron | SHA-256 (16) | Grootte |",
+                            "|------|------|--------------|---------|"]
+            for art in deep_findings:
+                audit_lines.append(
+                    f"| {art.get('type','')} | {Path(art.get('source','')).name} "
+                    f"| `{art.get('sha256','?')[:16]}…` | {art.get('size',0)} bytes |"
+                )
+    except Exception as e:
+        audit_lines.append(f"  ERR diepte-extractie: {e}")
+        print(f"  Diepte-extractie fout: {e}")
+
+    audit_lines += ["", "---", "", "## 3. FORENSISCHE INDEX-SCAN", ""]
+
+    # ── Scan + index ──────────────────────────────────────────────────────
     findings = scan_directory(EXTRACTED)
     findings += scan_directory(ROOT / "forensic")
     print(f"  Bestanden gescand: {len(findings)}")
+    audit_lines.append(f"Bestanden gescand: **{len(findings)}**")
 
-    # Index
     index = load_index()
     new, updated = update_index(index, findings)
     save_index(index)
     print(f"  Nieuw: {new} | Bijgewerkt: {updated} | Totaal: {len(index['entries'])}")
+    audit_lines.append(f"Nieuw: {new} | Bijgewerkt: {updated} | Totaal: {len(index['entries'])}")
 
-    # Reports
-    todo_path = generate_daily_todo(index)
-    index_path = generate_daily_index_md(index)
+    # ── Reports ───────────────────────────────────────────────────────────
+    audit_lines += ["", "---", "", "## 4. PATROON-DETECTIE (diepte-analyse)", ""]
 
-    # Diepte-analyse bij patroondetectie
-    depth_path = run_depth_analysis(findings, index)
+    todo_path   = generate_daily_todo(index)
+    index_path  = generate_daily_index_md(index)
+    depth_path  = run_depth_analysis(findings, index)
     if depth_path:
+        audit_lines.append(f"Diepte-analyse: `{depth_path.name}`")
         print(f"  Diepte: {depth_path}")
+    else:
+        audit_lines.append("Geen diepte-patronen getriggerd.")
 
-    # Excel (separate module)
+    # ── Excel ─────────────────────────────────────────────────────────────
+    audit_lines += ["", "---", "", "## 5. EXCEL RAPPORT", ""]
     try:
         from forensic.excel_report import generate_excel
         xl_path = generate_excel(index, TODAY)
+        audit_lines.append(f"Excel: `{xl_path.name}`")
         print(f"  Excel: {xl_path}")
     except Exception as e:
+        audit_lines.append(f"Excel overgeslagen: {e}")
         print(f"  Excel overgeslagen: {e}")
+
+    # ── Afsluiting ────────────────────────────────────────────────────────
+    ts_end = _dt.datetime.utcnow().isoformat() + "Z"
+    audit_lines += ["", "---", "",
+                    f"## Pipeline klaar: {ts_end} UTC",
+                    f"TODO: `{todo_path.name}` | Index: `{index_path.name}`"]
+
+    audit_path = REPORTS / f"AUDIT_{TODAY}.md"
+    audit_path.write_text('\n'.join(audit_lines), encoding='utf-8')
 
     print(f"  TODO:  {todo_path}")
     print(f"  Index: {index_path}")
-    print(f"[{TODAY}] Pipeline klaar")
+    print(f"  Audit: {audit_path}")
+    print(f"[{TODAY}] Pipeline klaar — {ts_end}")
 
 if __name__ == "__main__":
     run()

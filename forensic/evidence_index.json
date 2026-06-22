@@ -1240,9 +1240,9 @@
     },
     "forensic/pipeline.py": {
       "file": "forensic/pipeline.py",
-      "hash": "b03c94c2",
-      "size_kb": 17.2,
-      "modified": "2026-06-22T16:39",
+      "hash": "869ed835",
+      "size_kb": 22.1,
+      "modified": "2026-06-22T19:40",
       "analyzed": "2026-06-22",
       "nb_refs": [
         "36",
@@ -1347,9 +1347,9 @@
     },
     "forensic/evidence_index.json": {
       "file": "forensic/evidence_index.json",
-      "hash": "b76ee41c",
-      "size_kb": 46.1,
-      "modified": "2026-06-22T16:39",
+      "hash": "f573ebdc",
+      "size_kb": 45.9,
+      "modified": "2026-06-22T16:45",
       "analyzed": "2026-06-22",
       "nb_refs": [
         "36",
@@ -1434,7 +1434,55 @@
       ],
       "bewijs_weight": "PENDING",
       "spoor": "BEIDE (check scheiding!)",
-      "summary": "{   \"created\": \"2026-06-22\",   \"entries\": {     \"extracted_docs/FORENSIC_AANVULLEND.md\": {       \"file\": \"extracted_docs/FORENSIC_AANVULLEND.md\",       \"hash\": \"2484c37a\",       \"size_kb\": 12.4,      "
+      "summary": "{   \"created\": \"2026-06-22\",   \"entries\": {     \"extracted_docs/FORENSIC_AANVULLEND.md\": {       \"file\": \"extracted_docs/FORENSIC_AANVULLEND.md\",       \"hash\": \"7b5ac5c0\",       \"size_kb\": 12.3,      "
+    },
+    "forensic/SHA256_MANIFEST.json": {
+      "file": "forensic/SHA256_MANIFEST.json",
+      "hash": "4b53b8c5",
+      "size_kb": 7.8,
+      "modified": "2026-06-22T19:40",
+      "analyzed": "2026-06-22",
+      "nb_refs": [],
+      "legal_refs": [],
+      "actors": [],
+      "dates_found": [],
+      "todos": [],
+      "hypotheses": [],
+      "bewijs_weight": "PENDING",
+      "spoor": "ONBEKEND",
+      "summary": "{   \"generated\": \"2026-06-22T19:40:24.830537Z\",   \"tool\": \"forensic/hash_manifest.py\",   \"dossier\": \"Grothe BSN 215672185\",   \"total_files\": 39,   \"files\": {     \"extracted_docs/FORENSIC_AANVULLEND.md"
+    },
+    "forensic/deep_extractor.py": {
+      "file": "forensic/deep_extractor.py",
+      "hash": "7fbf66e8",
+      "size_kb": 10.9,
+      "modified": "2026-06-22T19:35",
+      "analyzed": "2026-06-22",
+      "nb_refs": [],
+      "legal_refs": [],
+      "actors": [],
+      "dates_found": [],
+      "todos": [],
+      "hypotheses": [],
+      "bewijs_weight": "PENDING",
+      "spoor": "ONBEKEND",
+      "summary": "Base64 blokken (min 100 chars, typisch voor embedded data)"
+    },
+    "forensic/hash_manifest.py": {
+      "file": "forensic/hash_manifest.py",
+      "hash": "e2f58ab9",
+      "size_kb": 5.9,
+      "modified": "2026-06-22T19:34",
+      "analyzed": "2026-06-22",
+      "nb_refs": [],
+      "legal_refs": [],
+      "actors": [],
+      "dates_found": [],
+      "todos": [],
+      "hypotheses": [],
+      "bewijs_weight": "PENDING",
+      "spoor": "ONBEKEND",
+      "summary": "#!/usr/bin/env python3 \"\"\" SHA-256 manifest + wijzigingsdetectie voor alle bewijs-bestanden. Genereert een gesigneerde manifest die naar git gepusht wordt zodat GitHub als onafhankelijk tijdstempel fu"
     }
   },
   "causal_map": [
