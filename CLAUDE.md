@@ -26,15 +26,25 @@ Forensisch-juridisch onderzoek door data-subject Isabel Grothe (BSN 215672185) n
 | 03-08-2026 | Hof van Discipline 260153 uitspraak |
 
 ## Open prioriteiten (bij elke sessie checken)
-- [ ] AGB J.M. Blauw opzoeken via Vektis → registratiedatum vs. 29-11-2019
-- [ ] WERKDOCUMENT_Grothe_dossier_SAMENGEVOEGD_20260621_3.md bijwerken met NB-173
-- [ ] IGJ_VOLLEDIG_DOSSIER_20260621.docx lezen (niet gelezen)
-- [ ] AP_VOLLEDIG_DOSSIER_20260621.docx lezen (niet gelezen)
-- [ ] AP_klacht_aanvulling_driepatroon_20260621_3.docx lezen + bijwerken met vierpatroon Blauw
+- [x] AGB J.M. Blauw opzoeken via Vektis → AGB 84114458, basisarts since 18-05-2016 (vierpatroon bevestigd 23-06-2026)
+- [ ] WERKDOCUMENT_Grothe_dossier_SAMENGEVOEGD_20260621_3.md bijwerken met NB-173/184
+- [x] IGJ_VOLLEDIG_DOSSIER_20260621.docx → verwerkt in IGJ_VOLLEDIG_20260623_STYLED.md (23-06-2026)
+- [x] AP_VOLLEDIG_DOSSIER_20260621.docx → verwerkt in AP_VOLLEDIG_20260623_STYLED.md (23-06-2026)
+- [x] AP_klacht_aanvulling_driepatroon_20260621_3.docx → vierpatroon Blauw NB-173 verwerkt in beide brieven
 - [ ] Actor 470154242 identificeren
 - [ ] Caren person-ID 492769 screenshot analyseren
 - [ ] NB-160 causale keten 13-01-2020 → 02-10-2024 formaliseren
 - [ ] NB-148 Van der List formaliseren
+
+## Brieven gegenereerd (23-06-2026)
+| Bestand | Grootte | NB-bereik | Status |
+|---------|---------|-----------|--------|
+| `extracted_docs/AP_VOLLEDIG_20260623_STYLED.md` | 100.099 chars, 563 regels | NB-01 t/m NB-184 | ✓ Volledig |
+| `extracted_docs/IGJ_VOLLEDIG_20260623_STYLED.md` | 91.423 chars, 699 regels | NB-01 t/m NB-184 | ✓ Volledig |
+
+**AP-brief nieuw vs. vorige versie:** vierpatroon Blauw (§3), W1-W9 tijdlijn (§7), MITZ A1-A4 (§7.1-7.6), PDF-forensisch (§6.5), apotheeksurveillance 10 actoren (§8), KETEN 5+6, 14 verzoekpunten.
+
+**IGJ-brief nieuw vs. vorige versie:** vierpatroon Blauw (§2.4), W1-W9 tijdlijn (§10), MITZ A1-A4 (§6), PDF-forensisch (§7), apotheeksurveillance (§8), CSS-sabotage 2 actoren (§5.2), KETEN 1-7, 13 verzoekpunten.
 
 ## Token-efficiëntie — gedragsregels
 
@@ -77,7 +87,7 @@ De gebruiker typt één van deze signalen om meer detail te krijgen:
 | A. al-Mousawi | 84126524 | Basisarts va. 04-09-2023; entry 13-01-2020 (3,5jr te vroeg) | NB-108/169 |
 | J.P.J. van der List | 84115003 | Basisarts va. 05-06-2020; AIOS ortho label 29-11-2018 | NB-148 |
 | N.M. Nota | 84107660 | Uitsluitend basisarts; AIOS reum label; massa-sluiting 02-10-2024 | NB-108/171 |
-| J.M. Blauw | PM (Vektis pending) | Laborders 29-11-2019 zonder consult; basisarts vóór entry | NB-173 |
+| J.M. Blauw | AGB 84114458 | Laborders 29-11-2019 zonder consult; basisarts since 18-05-2016 (Vektis 21-06-2026) | NB-173 |
 | M. van der Kroon (MRK) | FACILITAIR | Admin 14-12-2017 + override.css developer | NB-168/CC-J |
 | K.J. Burlage | AGB 67480 | Huisarts, deceased 15-02-2024; post-mortem naam ingevoerd | NB-36/170 |
 | N.M. Nota | ext 51504662 | Tweemansprocedure 02-10-2024 | NB-108 |
@@ -90,6 +100,12 @@ python3 -m forensic.pipeline   # scan + index + Excel in reports/
 Output: `reports/TODO_[datum].md`, `INDEX_[datum].md`, `FORENSISCH_DOSSIER_GROTHE_[datum].xlsx`
 GitHub Action: `.github/workflows/daily-forensic.yml` — 06:00 CET, handmatig triggeren via GitHub Actions tab.
 Laatste run: 22-06-2026 — 31 bestanden, ~3 sec.
+
+## NB-register status (23-06-2026)
+- Totaal: **NB-01 t/m NB-184** (184 bevindingen)
+- Bronbestand: `alles_bij_elkaar_definitief_.txt` (TSV, 9.703 rijen, header-inclusief)
+- Bijlage MD: `/tmp/nb_bijlage.md` (51.625 chars, 185 regels) — sessie-tijdelijk, opnieuw genereren indien nodig
+- Alle 6 Drive-spreadsheets gelezen (23-06-2026): VWI-log, Dossier Grothe spreadsheet 2, tijdlijn_AVG_v4, chronologisch_juridisch_v2, Forensische Analyse Documenten
 
 ## Bestandsstructuur
 ```
