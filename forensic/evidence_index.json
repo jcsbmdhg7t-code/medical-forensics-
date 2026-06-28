@@ -1347,9 +1347,9 @@
     },
     "forensic/evidence_index.json": {
       "file": "forensic/evidence_index.json",
-      "hash": "e68ce507",
+      "hash": "dd518e45",
       "size_kb": 47.6,
-      "modified": "2026-06-26T21:18",
+      "modified": "2026-06-28T19:00",
       "analyzed": "2026-06-28",
       "nb_refs": [
         "36",
@@ -1438,9 +1438,9 @@
     },
     "forensic/SHA256_MANIFEST.json": {
       "file": "forensic/SHA256_MANIFEST.json",
-      "hash": "ffd7bc06",
-      "size_kb": 2.6,
-      "modified": "2026-06-28T19:00",
+      "hash": "632507ac",
+      "size_kb": 2.7,
+      "modified": "2026-06-28T19:02",
       "analyzed": "2026-06-28",
       "nb_refs": [],
       "legal_refs": [],
@@ -1450,7 +1450,7 @@
       "hypotheses": [],
       "bewijs_weight": "PENDING",
       "spoor": "ONBEKEND",
-      "summary": "{   \"generated\": \"2026-06-28T19:00:31.290908Z\",   \"tool\": \"forensic/hash_manifest.py\",   \"dossier\": \"Grothe BSN 215672185\",   \"total_files\": 13,   \"files\": {     \"forensic/SHA256_MANIFEST.json\": {    "
+      "summary": "{   \"generated\": \"2026-06-28T19:02:29.175313Z\",   \"tool\": \"forensic/hash_manifest.py\",   \"dossier\": \"Grothe BSN 215672185\",   \"total_files\": 14,   \"files\": {     \"forensic/SHA256_MANIFEST.json\": {    "
     },
     "forensic/deep_extractor.py": {
       "file": "forensic/deep_extractor.py",
@@ -1483,6 +1483,22 @@
       "bewijs_weight": "PENDING",
       "spoor": "ONBEKEND",
       "summary": "#!/usr/bin/env python3 \"\"\" SHA-256 manifest + wijzigingsdetectie voor alle bewijs-bestanden. Genereert een gesigneerde manifest die naar git gepusht wordt zodat GitHub als onafhankelijk tijdstempel fu"
+    },
+    "forensic/drive_audit.py": {
+      "file": "forensic/drive_audit.py",
+      "hash": "6c09a221",
+      "size_kb": 12.4,
+      "modified": "2026-06-28T19:02",
+      "analyzed": "2026-06-28",
+      "nb_refs": [],
+      "legal_refs": [],
+      "actors": [],
+      "dates_found": [],
+      "todos": [],
+      "hypotheses": [],
+      "bewijs_weight": "PENDING",
+      "spoor": "ONBEKEND",
+      "summary": "#!/usr/bin/env python3 \"\"\" Drive-audit voor forensisch dossier Grothe (D2 uit plan).  Genereert extracted_docs/DRIVE_AUDIT_YYYY-MM-DD.md met: - Recursieve folder-walk van twee target-folders in Drive "
     }
   },
   "causal_map": [
