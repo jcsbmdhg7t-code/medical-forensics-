@@ -1,0 +1,53 @@
+name: Drive Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder_id:
+        description: 'Drive folder ID'
+        required: true
+        default: '1M0tfbrpNE5801slOAbTmgTPSQmcNLdFz'
+      pattern:
+        description: 'Bestandspatroon (bijv. *.md)'
+        required: false
+        default: '*.md'
+      overwrite:
+        description: 'Bestaande bestanden overschrijven?'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: Herstel cache
+        uses: actions/cache@v4
+        with:
+          path: extracted_docs/
+          key: extracted-docs-${{ github.run_id }}
+          restore-keys: extracted-docs-
+      - name: Upload
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          DRIVE_FOLDER_ID: ${{ github.event.inputs.folder_id }}
+        run: |
+          OVERWRITE=""
+          [ "${{ github.event.inputs.overwrite }}" = "true" ] && OVERWRITE="--overwrite"
+          python3 forensic/drive_upload.py \
+            --mode dir \
+            --pattern "${{ github.event.inputs.pattern }}" \
+            $OVERWRITE
