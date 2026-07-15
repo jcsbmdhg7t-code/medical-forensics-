@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxyman Capture Filter — Dossier Grothe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 100%);
+    color: #e2e8f0;
+    font-size: 13px;
+    padding: 0;
+  }
+
+  header {
+    background: linear-gradient(90deg, #1a1f2e 0%, #141824 100%);
+    border-bottom: 2px solid #b71c1c;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  header span {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  .badge {
+    background: linear-gradient(135deg, #b71c1c 0%, #991b1b 100%);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,.2);
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px 20px;
+    background: linear-gradient(90deg, #141824 0%, #0f1117 100%);
+    border-bottom: 1px solid #1e293b;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #b71c1c 0%, #991b1b 100%);
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(183, 28, 28, 0.3);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(183, 28, 28, 0.4); }
+  .btn-secondary {
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid #334155;
+  }
+  .btn-secondary:hover { background: #1e293b; border-color: #475569; }
+  label.btn { display: inline-block; cursor: pointer; }
+  input[type=file] { display: none; }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #334155;
+    background: rgba(30, 41, 59, 0.5);
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .chip:hover { border-color: #475569; background: rgba(30, 41, 59, 0.8); }
+  .chip.active {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    color: #60a5fa;
+    border-color: #3b82f6;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+  .chip.active.c-critical { background: linear-gradient(135deg, #5f1f1f 0%, #2a0f0f 100%); color: #f87171; border-color: #b91c1c; }
+  .chip.active.c-audit { background: linear-gradient(135deg, #1f3f2a 0%, #0f2a1a 100%); color: #4ade80; border-color: #16a34a; }
+  .chip.active.c-telemetry { background: linear-gradient(135deg, #2a1f3f 0%, #1a0f2a 100%); color: #c084fc; border-color: #7c3aed; }
+  .chip.active.c-hidden { background: linear-gradient(135deg, #3f2f1f 0%, #2a1f0f 100%); color: #fbbf24; border-color: #d97706; }
+
+  .stats {
+    display: flex;
+    border-bottom: 1px solid #1e293b;
+    overflow-x: auto;
+    background: rgba(15, 17, 23, 0.5);
+  }
+  .stat {
+    flex: 1;
+    min-width: 100px;
+    padding: 14px 16px;
+    border-right: 1px solid #1e293b;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .stat:hover { background: rgba(30, 41, 59, 0.5); }
+  .stat:last-child { border-right: none; }
+  .stat .n {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .stat .l {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .red .n { color: #f87171; }
+  .green .n { color: #4ade80; }
+  .orange .n { color: #fb923c; }
+  .blue .n { color: #60a5fa; }
+  .purple .n { color: #c084fc; }
+  .yellow .n { color: #fbbf24; }
+
+  .searchbar {
+    padding: 10px 20px;
+    background: #141824;
+    border-bottom: 1px solid #1e293b;
+  }
+  .searchbar input {
+    width: 100%;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #e2e8f0;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .searchbar input:focus {
+    border-color: #3b82f6;
+    background: #0f1722;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+  }
+
+  .table-section {
+    padding: 20px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th {
+    background: linear-gradient(90deg, #1a1f2e 0%, #141824 100%);
+    color: #94a3b8;
+    padding: 12px 10px;
+    text-align: left;
+    font-weight: 700;
+    border-bottom: 2px solid #1e293b;
+    position: sticky;
+    top: 0;
+  }
+  td {
+    padding: 10px;
+    border-bottom: 1px solid #1e293b;
+  }
+  tr:hover { background: rgba(30, 41, 59, 0.3); }
+  tr.critical { background: rgba(185, 28, 28, 0.1); }
+  tr.audit { background: rgba(22, 163, 74, 0.1); }
+  tr.hidden { background: rgba(217, 119, 6, 0.1); }
+
+  .url { font-family: 'Monaco', 'Courier', monospace; color: #60a5fa; word-break: break-all; }
+  .status-200 { color: #4ade80; font-weight: 600; }
+  .status-404, .status-403 { color: #f87171; font-weight: 600; }
+  .status-302, .status-301 { color: #fbbf24; font-weight: 600; }
+
+  .footer {
+    padding: 16px 20px;
+    background: #080d18;
+    border-top: 1px solid #1e293b;
+    font-size: 11px;
+    color: #64748b;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 Proxyman Capture Filter</h1>
+  <span>Dossier Grothe — Forensisch netwerk-audit</span>
+  <div class="badge">Actief</div>
+</header>
+
+<div class="toolbar">
+  <button class="btn btn-primary" onclick="exportData()">📥 Export CSV</button>
+  <button class="btn btn-primary" onclick="clearData()">🗑️ Clear</button>
+  <button class="btn btn-secondary" onclick="toggleHelp()">❓ Help</button>
+  <div class="filters">
+    <button class="chip" onclick="toggleFilter(this, 'critical')">🔴 Kritiek</button>
+    <button class="chip" onclick="toggleFilter(this, 'audit')">📋 Audit</button>
+    <button class="chip" onclick="toggleFilter(this, 'telemetry')">📡 Telemetry</button>
+    <button class="chip" onclick="toggleFilter(this, 'hidden')">👁️ Hidden</button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat red"><div class="n" id="count-critical">0</div><div class="l">KRITIEK</div></div>
+  <div class="stat green"><div class="n" id="count-audit">0</div><div class="l">AUDIT</div></div>
+  <div class="stat orange"><div class="n" id="count-telemetry">0</div><div class="l">TELEMETRY</div></div>
+  <div class="stat purple"><div class="n" id="count-hidden">0</div><div class="l">HIDDEN</div></div>
+  <div class="stat blue"><div class="n" id="count-total">0</div><div class="l">TOTAL</div></div>
+</div>
+
+<div class="searchbar">
+  <input type="text" id="search" placeholder="🔍 Search URL, domain, pattern..." onkeyup="filterTable()">
+</div>
+
+<div class="table-section">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:10%">Time</th>
+        <th style="width:10%">Method</th>
+        <th style="width:10%">Status</th>
+        <th style="width:40%">URL</th>
+        <th style="width:15%">Category</th>
+        <th style="width:15%">Finding</th>
+      </tr>
+    </thead>
+    <tbody id="table-body">
+      <!-- Dynamisch ingevuld -->
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <p>🔒 Forensisch netwerk audit — Evidence integrity via SHA-256 hashing. Source: Proxyman + Storm Sniffer interceptors.</p>
+</div>
+
+<script>
+var capturedRequests = [];
+
+function addCapture(timestamp, method, status, url, category, finding) {
+  capturedRequests.push({ timestamp, method, status, url, category, finding });
+  updateStats();
+  renderTable();
+}
+
+function updateStats() {
+  var stats = { critical: 0, audit: 0, telemetry: 0, hidden: 0 };
+  for (var i = 0; i < capturedRequests.length; i++) {
+    var cat = capturedRequests[i].category.toLowerCase();
+    if (cat in stats) stats[cat]++;
+  }
+  document.getElementById('count-critical').textContent = stats.critical;
+  document.getElementById('count-audit').textContent = stats.audit;
+  document.getElementById('count-telemetry').textContent = stats.telemetry;
+  document.getElementById('count-hidden').textContent = stats.hidden;
+  document.getElementById('count-total').textContent = capturedRequests.length;
+}
+
+function renderTable() {
+  var tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  for (var i = 0; i < capturedRequests.length; i++) {
+    var r = capturedRequests[i];
+    var row = document.createElement('tr');
+    row.className = r.category.toLowerCase();
+    row.innerHTML = '<td>' + r.timestamp.slice(11, 19) + '</td>' +
+                    '<td>' + r.method + '</td>' +
+                    '<td class="status-' + r.status + '">' + r.status + '</td>' +
+                    '<td class="url">' + escapeHtml(r.url) + '</td>' +
+                    '<td>' + r.category + '</td>' +
+                    '<td>' + escapeHtml(r.finding) + '</td>';
+    tbody.appendChild(row);
+  }
+}
+
+function filterTable() {
+  var query = document.getElementById('search').value.toLowerCase();
+  var rows = document.querySelectorAll('#table-body tr');
+  for (var i = 0; i < rows.length; i++) {
+    var text = rows[i].textContent.toLowerCase();
+    rows[i].style.display = text.indexOf(query) > -1 ? '' : 'none';
+  }
+}
+
+function toggleFilter(btn, category) {
+  btn.classList.toggle('active');
+  btn.classList.add('c-' + category);
+}
+
+function exportData() {
+  var csv = 'Time,Method,Status,URL,Category,Finding\n';
+  for (var i = 0; i < capturedRequests.length; i++) {
+    var r = capturedRequests[i];
+    csv += '"' + r.timestamp + '","' + r.method + '","' + r.status + '","' + r.url + '","' + r.category + '","' + r.finding + '"\n';
+  }
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'proxyman_audit_' + new Date().toISOString().slice(0, 10) + '.csv';
+  link.click();
+}
+
+function clearData() {
+  if (confirm('Clear all captures?')) {
+    capturedRequests = [];
+    updateStats();
+    renderTable();
+  }
+}
+
+function toggleHelp() {
+  alert('Proxyman Filter Guide:\n\n' +
+        '🔴 KRITIEK — Diagnose codes, disabled audit trail, keystroke capture\n' +
+        '📋 AUDIT — Audit trail requests and responses\n' +
+        '📡 TELEMETRY — Hotjar, Sentry, tracking pixels\n' +
+        '👁️ HIDDEN — Hidden CSS classes, white-on-white text\n\n' +
+        'Use search bar to filter captures. Export to CSV for forensic reports.');
+}
+
+function escapeHtml(text) {
+  var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Demo data
+addCapture('2026-07-15T14:23:45Z', 'GET', 200, 'https://mychartplus.spaarnegasthuis.nl/MyChart/api/v2/Patient/GetCurrentPatientAndUserObject', 'CRITICAL', 'NB-177 ChipSoft patient object');
+addCapture('2026-07-15T14:23:46Z', 'POST', 403, 'https://mychartplus.spaarnegasthuis.nl/MyChart/api/v2/audit/GetClinicianAccessLogEntries', 'AUDIT', 'NB-163 Audit trail blocked');
+addCapture('2026-07-15T14:23:47Z', 'GET', 200, 'https://cdn.hotjar.com/h.js?hjid=2574281', 'TELEMETRY', 'NB-79 Hotjar tracker');
+
+</script>
+
+</body>
+</html>
