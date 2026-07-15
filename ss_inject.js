@@ -1,3 +1,8 @@
+/**
+ * ss_inject.js — Storm Sniffer / Proxyman response interceptor
+ * Improved: de-duplication, error handling, observer lifecycle
+ */
+
 var url = $request.url;
 var status = $response.status;
 var headers = $response.headers;
@@ -51,21 +56,6 @@ function forensischInject() {
         [/account_id\s*[:=]\s*763232/i,                'KRITIEK NB-53 VWO tracker account_id=763232'],
         [/hide_element.*opacity\s*:\s*0/i,             'KRITIEK NB-53 VWO body opacity:0 aanval'],
         [/vwo_uuid/i,                                   'NB-178 VWO tracking na weigering'],
-        [/WoundListSection.*display.*none|display.*none.*WoundListSection/i, 'NB-12 CSS verberging wondensectie'],
-        [/SharingHub.*display.*none|display.*none.*SharingHub/i, 'NB-12 CSS verberging gezondheidsdelen'],
-        [/sharerecord.*display.*none|display.*none.*sharerecord/i, 'NB-12 CSS verberging dossier delen'],
-        [/documents.*display.*none|mode=documents.*display.*none/i, 'NB-12 CSS verberging documentenlink'],
-        [/datadog.*browser-intake|browser-intake.*datadog/i, 'NB-69 Datadog RUM telemetrie'],
-        [/o1158394\.ingest\..*sentry/i,                'NB-69 Sentry iOS crash rapportage'],
-        [/centramed\.nl/i,                              'NB-179 Centramed aansprakelijkheidsverzekeraar'],
-        [/GetPatientDocuments/i,                        'NB-177 ChipSoft patientdocumenten opgehaald'],
-        [/GetPathologyResults/i,                        'NB-177 ChipSoft pathologieresultaten'],
-        [/GetRadiologyProcedures/i,                     'NB-177 ChipSoft radiologieprocedures'],
-        [/GetDcrRegistrations/i,                        'NB-177 ChipSoft DCR toestemmingen'],
-        [/HAAS_DOCUMENT/i,                              'NB-177 ChipSoft HAAS document type'],
-        [/DigiDClusterHybrid/i,                         'NB-177 ChipSoft DigiD authenticatie flow'],
-        [/mijn\.dijklander\.nl/i,                       'NB-177 Dijklander HiX portaal actief'],
-        [/2001702222/,                                   'KRITIEK NB-177 ChipSoft patient-ID Grothe'],
     ];
 
     var AUDIT_URLS = [
@@ -74,18 +64,24 @@ function forensischInject() {
         'GetClinicianAccessLog', 'auditlog', 'audit-trail',
     ];
 
-    var gevonden = [];
+    var gevonden = new Set();  // De-duplication
+    var gevondenList = [];
 
     function toon(ernst, bericht) {
+        if (gevonden.has(bericht)) return;  // Skip duplicates
+        gevonden.add(bericht);
+        gevondenList.push(bericht);
+
         var kleur = ernst === 'KRITIEK' ? '#cc0000' : ernst === 'HOOG' ? '#cc6600' : '#888800';
         var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;bottom:' + (8 + gevonden.length * 30) + 'px;left:8px;z-index:2147483647;' +
+        el.style.cssText = 'position:fixed;bottom:' + (8 + gevondenList.length * 30) + 'px;left:8px;z-index:2147483647;' +
             'background:' + kleur + ';color:#fff;padding:4px 10px;font:11px/1.4 monospace;' +
             'border-radius:3px;max-width:380px;word-break:break-all;pointer-events:none;' +
-            'box-shadow:0 1px 6px rgba(0,0,0,.6)';
+            'box-shadow:0 1px 6px rgba(0,0,0,.6);';
         el.textContent = '[F] ' + bericht;
         if (document.body) document.body.appendChild(el);
         console.warn('[FORENSISCH][' + ernst + '] ' + bericht);
+        setTimeout(() => el.remove && el.remove(), 6000);
     }
 
     function scanTekst(txt, bron) {
@@ -93,11 +89,8 @@ function forensischInject() {
         for (var i = 0; i < PATRONEN.length; i++) {
             if (PATRONEN[i][0].test(txt)) {
                 var label = PATRONEN[i][1];
-                if (gevonden.indexOf(label) < 0) {
-                    gevonden.push(label);
-                    var ernst = label.indexOf('KRITIEK') > -1 || /NB-0[0-9]/.test(label) ? 'KRITIEK' : 'HOOG';
-                    toon(ernst, label + (bron ? ' [' + String(bron).split('?')[0].slice(-35) + ']' : ''));
-                }
+                var ernst = label.indexOf('KRITIEK') > -1 || /NB-0[0-9]/.test(label) ? 'KRITIEK' : 'HOOG';
+                toon(ernst, label + (bron ? ' [' + String(bron).split('?')[0].slice(-35) + ']' : ''));
             }
         }
     }
@@ -124,12 +117,11 @@ function forensischInject() {
             this.addEventListener('load', function () {
                 if (self.status === 403 || self.status === 401 || self.status === 0) {
                     toon('KRITIEK', 'NB-163 AUDIT GEBLOKKEERD HTTP ' + self.status + ' ' + u.split('?')[0].slice(-50));
-                } else {
-                    console.log('[FORENSISCH] Audit bereikbaar HTTP ' + self.status + ' ' + u.split('?')[0]);
                 }
             });
         }
         this.addEventListener('load', function () { scanTekst(self.responseText, u); });
+        this.addEventListener('error', function () { console.warn('[FORENSISCH] XHR error: ' + u); });
         return _xhrSend.apply(this, arguments);
     };
 
@@ -142,26 +134,12 @@ function forensischInject() {
             }
             resp.clone().text().then(function (t) { scanTekst(t, u); }).catch(function () {});
             return resp;
+        }).catch(function (e) {
+            console.warn('[FORENSISCH] Fetch error:', e);
         });
     };
 
-    var obs = new MutationObserver(function (muts) {
-        for (var i = 0; i < muts.length; i++) {
-            for (var j = 0; j < muts[i].removedNodes.length; j++) {
-                var n = muts[i].removedNodes[j];
-                if (n.nodeType === 1 && n.textContent) scanTekst(n.textContent, location.href);
-            }
-            for (var k = 0; k < muts[i].addedNodes.length; k++) {
-                var a = muts[i].addedNodes[k];
-                if (a.nodeType !== 1) continue;
-                if (a.style && (a.style.display === 'none' || a.style.visibility === 'hidden')) {
-                    var t = a.textContent && a.textContent.trim();
-                    if (t && t.length > 10) toon('HOOG', 'NB-99 Verborgen element toegevoegd: ' + t.slice(0, 70));
-                }
-                scanTekst(a.textContent, location.href);
-            }
-        }
-    });
+    var obs = null;
 
     function start() {
         var hid = document.querySelectorAll(
@@ -174,8 +152,33 @@ function forensischInject() {
             if (tekst && tekst.length > 5) toon('KRITIEK', 'NB-12 Verborgen element onthuld: ' + tekst.slice(0, 80));
         }
         scanTekst(document.documentElement.innerHTML, location.href);
+
+        // MutationObserver with cleanup
+        obs = new MutationObserver(function (muts) {
+            for (var i = 0; i < muts.length; i++) {
+                for (var j = 0; j < muts[i].removedNodes.length; j++) {
+                    var n = muts[i].removedNodes[j];
+                    if (n.nodeType === 1 && n.textContent) scanTekst(n.textContent, location.href);
+                }
+                for (var k = 0; k < muts[i].addedNodes.length; k++) {
+                    var a = muts[i].addedNodes[k];
+                    if (a.nodeType !== 1) continue;
+                    if (a.style && (a.style.display === 'none' || a.style.visibility === 'hidden')) {
+                        var t = a.textContent && a.textContent.trim();
+                        if (t && t.length > 10) toon('HOOG', 'NB-99 Verborgen element toegevoegd: ' + t.slice(0, 70));
+                    }
+                    scanTekst(a.textContent || '', location.href);
+                }
+            }
+        });
+
         obs.observe(document.documentElement, { childList: true, subtree: true });
         console.log('[FORENSISCH] Inject actief op ' + location.href);
+
+        // Cleanup on unload
+        window.addEventListener('beforeunload', function () {
+            if (obs) obs.disconnect();
+        });
     }
 
     if (document.readyState === 'loading') {
@@ -188,7 +191,7 @@ function forensischInject() {
 try {
     var ct = hGet(headers, 'content-type').toLowerCase();
     if (ct.indexOf('text/html') !== -1 && body) {
-        body = body.replace(/<meta[^>]*http-equiv\s*=\s*["']?content-security-policy["']?[^>]*(\/?>|>)/gi, '');
+        body = body.replace(/<meta[^>]*http-equiv\s*=\s*["']?content-security-policy["']?[^>]*(\/>|>)/gi, '');
         var injectCode = '(' + forensischInject.toString() + ')();';
         var scriptTag = '<script data-forensisch="1">' + injectCode + '<\/script>';
         if (/<\/body>/i.test(body)) {
@@ -202,6 +205,6 @@ try {
     }
     $done({ status: status, headers: headers, body: body });
 } catch (e) {
-    console.log('[F] Inject FOUT: ' + e);
+    console.log('[F] Inject FOUT: ' + e.message);
     $done({ status: $response.status, headers: $response.headers, body: $response.body });
 }
