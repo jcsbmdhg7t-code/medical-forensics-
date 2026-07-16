@@ -1,0 +1,25 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "claude/MIAIN" ]
+  pull_request:
+    branches: [ "claude/MIAIN" ]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
