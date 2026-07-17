@@ -566,13 +566,16 @@ class ForensicEngineV18:
         if mails:
             self.vind("e-mailadressen", bron, f"{len(mails)}: {mails[:10]}",
                       "L", "AVG art. 5(1)(d)")
-        # generieke secrets/tokens
-        secrets = re.findall(r"(?:api[_-]?key|secret|token|bearer|authorization)"
-                             r"[\"'\s:=]+([A-Za-z0-9_\-\.]{16,})", t, re.I)
-        if secrets:
+        # generieke secrets/tokens — ALLEEN tellen; de waarde NOOIT opslaan/echoën
+        # (anders zou het rapport zelf de credential lekken → AVG art. 32).
+        sleutels = re.findall(r"(api[_-]?key|secret|token|bearer|authorization)"
+                              r"[\"'\s:=]+[A-Za-z0-9_\-\.]{16,}", t, re.I)
+        if sleutels:
+            soorten = sorted({s.lower() for s in sleutels})
             self.vind("mogelijke secrets/tokens", bron,
-                      f"{len(secrets)} credential-achtige waarde(n) aangetroffen "
-                      f"(eerste: {secrets[0][:12]}…).",
+                      f"{len(sleutels)} credential-achtige waarde(n) aangetroffen bij "
+                      f"sleutel(s): {soorten}. De waarden zelf zijn NIET in dit rapport "
+                      "opgenomen (worden geredigeerd).",
                       "M", "AVG art. 32 beveiliging", True)
 
     def _blokken(self, raw, bron):
