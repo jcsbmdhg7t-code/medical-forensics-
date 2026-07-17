@@ -5,6 +5,7 @@ Focuses on session token security in MedMij/PGO connections.
 import base64
 import functools
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -172,6 +173,70 @@ def check_timing(report: ForensicReport, data: dict) -> None:
         report.add("MEDIUM", "timing", f"High TTFB ({ttfb:.2f}s) — possible MitM latency injection")
 
 
+_CSS_HIDING_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'\.hiddenProvider\s*\{[^}]*display\s*:\s*none', re.I),
+     "CSS .hiddenProvider display:none — patient data hidden"),
+    (re.compile(r'CEDataExternal\s*\{[^}]*display\s*:\s*none', re.I),
+     "CSS CEDataExternal display:none — external data hidden"),
+    (re.compile(r'\.SRonly\s*\{[^}]*left\s*:\s*-\d{4,}px', re.I),
+     "CSS SRonly off-screen positioning — screen reader concealment"),
+    (re.compile(r'display\s*:\s*none\s*!important', re.I),
+     "CSS display:none !important — forced hiding"),
+    (re.compile(r'font-size\s*:\s*0(px)?[;\s]', re.I),
+     "CSS font-size:0 — text made invisible"),
+    (re.compile(r'override\.css', re.I),
+     "override.css reference — patient rights stylesheet override"),
+    (re.compile(r'lucy\.css|lucy_colors\.css', re.I),
+     "lucy.css reference — XDM rendering layer"),
+    (re.compile(r'printBlackText', re.I),
+     "CSS printBlackText — alarm colours neutralised on print"),
+]
+
+_FEATURE_FLAG_RE = re.compile(
+    r'DISABLEMYCONDITIONS|DISABLEPLANOFCARE|USERAUDITTRAIL'
+    r'|AUTOGENERATESIGNATURE|SUBSTANCEHXQNR|SEXUALACTIVITYHXQNR', re.I
+)
+
+_NOVIEW_RE = re.compile(r'noView\s*:\s*true', re.I)
+_GUARD_RE = re.compile(r'\bGUARD\b')
+
+
+@forensic_check
+def check_hidden_content(report: ForensicReport, data: dict) -> None:
+    """Extract hidden content from HTML/CSS/JS responses (Epic content suppression)."""
+    body_b64 = data["response"].get("bodyData", "")
+    if not body_b64:
+        return
+
+    content_type = _get_header(data["response"], "content-type") or ""
+    if not any(ct in content_type.lower() for ct in
+               ("text/html", "text/css", "javascript", "application/json")):
+        return
+
+    try:
+        raw = body_b64.encode("latin-1", errors="replace")
+        body = base64.b64decode(raw + b"==").decode("utf-8", errors="replace")
+    except Exception:
+        body = body_b64 if isinstance(body_b64, str) else ""
+
+    for pattern, description in _CSS_HIDING_PATTERNS:
+        m = pattern.search(body)
+        if m:
+            ctx = body[max(0, m.start() - 80):m.end() + 150].replace("\n", " ")
+            report.add("HIGH", "hidden-content", f"{description}: ...{ctx[:200]}...")
+
+    for flag in _FEATURE_FLAG_RE.findall(body):
+        report.add("HIGH", "feature-flag", f"Epic feature flag in response body: {flag}")
+
+    if _NOVIEW_RE.search(body):
+        report.add("HIGH", "hidden-content",
+                   "noView:true — data present in response but actively suppressed from display")
+
+    if _GUARD_RE.search(body):
+        report.add("MEDIUM", "hidden-content",
+                   "GUARD block detected — CDA-level access control suppressing content")
+
+
 # ── Runner ───────────────────────────────────────────────────────────────────
 
 CHECKS: list[Callable] = [
@@ -181,6 +246,7 @@ CHECKS: list[Callable] = [
     check_security_headers,
     check_response_body_integrity,
     check_timing,
+    check_hidden_content,
 ]
 
 

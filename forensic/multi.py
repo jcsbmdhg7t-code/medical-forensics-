@@ -5,6 +5,7 @@ import base64
 import gzip
 import json
 import os
+import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -150,6 +151,31 @@ _PRESENT_HEADERS = {
 }
 _HSTS_WARNED = False
 
+_CSS_HIDING: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'\.hiddenProvider\s*\{[^}]*display\s*:\s*none', re.I),
+     "CSS .hiddenProvider display:none — patient data hidden"),
+    (re.compile(r'CEDataExternal\s*\{[^}]*display\s*:\s*none', re.I),
+     "CSS CEDataExternal display:none — external data hidden"),
+    (re.compile(r'\.SRonly\s*\{[^}]*left\s*:\s*-\d{4,}px', re.I),
+     "CSS SRonly off-screen — screen reader concealment"),
+    (re.compile(r'display\s*:\s*none\s*!important', re.I),
+     "CSS display:none !important — forced hiding"),
+    (re.compile(r'font-size\s*:\s*0(px)?[;\s]', re.I),
+     "CSS font-size:0 — text made invisible"),
+    (re.compile(r'override\.css', re.I),
+     "override.css reference — stylesheet overriding patient rights"),
+    (re.compile(r'lucy\.css|lucy_colors\.css', re.I),
+     "lucy.css reference — XDM rendering layer"),
+    (re.compile(r'printBlackText', re.I),
+     "CSS printBlackText — alarm colours neutralised on print"),
+]
+_FEATURE_FLAG_RE = re.compile(
+    r'DISABLEMYCONDITIONS|DISABLEPLANOFCARE|USERAUDITTRAIL'
+    r'|AUTOGENERATESIGNATURE|SUBSTANCEHXQNR|SEXUALACTIVITYHXQNR', re.I
+)
+_NOVIEW_RE = re.compile(r'noView\s*:\s*true', re.I)
+_GUARD_RE = re.compile(r'\bGUARD\b')
+
 
 def analyse_archive(path: str) -> ArchiveReport:
     txs = load_archive(path)
@@ -257,6 +283,28 @@ def analyse_archive(path: str) -> ArchiveReport:
         if "Http Status 0" in body_str:
             report.add("MEDIUM", tx.id, "error",
                        f"Server returned Http Status 0 (null) on {tx.path} — possible expired session token")
+
+        # ── Hidden content in HTML/CSS/JS responses ──────────────────────
+        ct = tx.resp_headers.get("content-type", "")
+        if any(x in ct for x in ("text/html", "text/css", "javascript")) or body_str.startswith("<"):
+            for pattern, description in _CSS_HIDING:
+                m = pattern.search(body_str)
+                if m:
+                    ctx = body_str[max(0, m.start() - 80):m.end() + 150].replace("\n", " ")
+                    report.add("HIGH", tx.id, "hidden-content",
+                               f"{description}: ...{ctx[:200]}...")
+
+            for flag in _FEATURE_FLAG_RE.findall(body_str):
+                report.add("HIGH", tx.id, "feature-flag",
+                           f"Epic feature flag in response: {flag}")
+
+            if _NOVIEW_RE.search(body_str):
+                report.add("HIGH", tx.id, "hidden-content",
+                           f"noView:true — content present but suppressed on {tx.path}")
+
+            if _GUARD_RE.search(body_str):
+                report.add("MEDIUM", tx.id, "hidden-content",
+                           f"GUARD block — CDA access control suppressing content on {tx.path}")
 
         # ── Auth token reuse ─────────────────────────────────────────────
 
