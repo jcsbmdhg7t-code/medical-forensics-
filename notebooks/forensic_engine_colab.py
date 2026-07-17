@@ -18,18 +18,25 @@ Behouden basistechnieken (uit de oude cellen):
   PNG-chunks, staartdata, UUIDv1-MAC+tijd, BSN 11-proef, en de
   "gelijke lengte / andere hash"-signatuur (NB-224).
 
-Nieuw / uitgebreid (domeinspecifiek):
-  NL zorg-identifiers met OID-context (VEKTIS-AGB, BIG, UZI, URA, Epic-OID-roots),
-  verdachte actoren (999999 / 470154242 / 373282512 / nullFlavor=UNK),
-  forensische SNOMED-codes (361055000 drugs) en LOINC-secties (10160-0 medicatie),
-  CDA-verdieping (setId/versionNumber-rotatie, tijdzone-anomalie, parentDocument),
-  FHIR (Bundle/Patient/Observation, versionId-escalatie), IHE XDM METADATA.XML,
-  MedMij-portabiliteitsrapport, HAR/Proxyman + dossier-sabotagemarkers
-  (ajaxRequestInterceptor, epic.eci, spaarne-prd, hideProviderName, override.css),
-  Apple .ips/.crash/.diag, magic-byte-mismatch, Office-documentmetadata,
-  recursieve archief-extractie + matroesjka-reparatie. Bevindingen dragen
-  bewijswaarde (H/M/L) en juridische grondslag (AVG, WGBO 7:454, WABVPZ,
-  NEN 7510, HL7 CDA R2, Sr).
+ONTDEKKINGSLAAG (anti-tunnelvisie) — vindt zelf, sluit niet uit:
+  De engine leunt NIET op een vaste lijst van "wat verdacht is". Ze enumereert
+  ALLES (elke OID-autoriteit, codeSystem, identifier, namespace, tijdzone,
+  UUIDv1-MAC), voedt een corpus-brede index, en meldt AFWIJKINGEN VAN DE NORM:
+    - onbekende OID-autoriteit / onbekend codeSystem (nieuwe bron valt op)
+    - placeholder-identifiers (herhaald cijfer, bv. 000000/999999) generiek
+    - singleton-actoren (numeriek ID dat corpus-breed één keer voorkomt)
+    - zeldzame coderingen (frequentie 1), tijdzone-spreiding, meerdere MAC-nodes,
+      setId-rotatie over documenten
+    - niets stil weggeslikt: onbekende bestandstypen worden expliciet gemeld
+  Zo komen ONBEKENDE bevindingen boven zonder ze vooraf te definiëren.
+
+Bekende-signatuur-laag (aanvullende bevestiging, niet leidend):
+  NL zorg-identifiers met OID-context, referentie-actoren en -codes, CDA-verdieping
+  (setId/versionNumber-rotatie, tijdzone-anomalie, parentDocument), FHIR, IHE XDM,
+  MedMij-portabiliteitsrapport, HAR/Proxyman + sabotagemarkers, Apple .ips/.crash/
+  .diag, magic-byte-mismatch, Office-documentmetadata, recursieve archief-extractie
+  + matroesjka-reparatie. Bevindingen dragen bewijswaarde (H/M/L) en juridische
+  grondslag (AVG, WGBO 7:454, WABVPZ, NEN 7510, HL7 CDA R2, Sr).
 
 GEBRUIK IN COLAB
 ----------------
@@ -247,6 +254,24 @@ _NS_CDA = "urn:hl7-org:v3"
 _NS_XDM = "urn:oasis:names:tc:ebxml-regrep:xsd:lcm:3.0"
 _NS_MEDMIJ = "afsprakenstelsel.medmij.nl/portabiliteitsrapport"
 
+# — ONTDEKKINGSLAAG: bekende OID-/codeSystem-PREFIXEN (alles daarbuiten = onbekende
+#   autoriteit die wordt gemeld, NIET uitgesloten). Geen limitatieve signatuurlijst. —
+_BEKENDE_OID_PREFIXEN = (
+    "2.16.840.1.113883",   # HL7 internationaal
+    "2.16.528",            # Nederland (BIG/UZI/URA/VEKTIS)
+    "1.2.840.114350",      # Epic
+    "1.3.6.1.4.1.19376",   # IHE
+    "1.2.276",             # Duitsland
+)
+_BEKENDE_CODESYSTEMEN = {
+    "2.16.840.1.113883.6.96": "SNOMED CT",
+    "2.16.840.1.113883.6.1": "LOINC",
+    "2.16.840.1.113883.6.3": "ICD-10",
+    "2.16.840.1.113883.6.73": "ATC",
+    "2.16.840.1.113883.6.88": "RxNorm",
+    "2.16.840.1.113883.2.4.4.1.900.2": "G-Standaard",
+}
+
 
 def _script_van(c):
     o = ord(c)
@@ -293,6 +318,17 @@ class ForensicEngineV18:
         self.inventaris = []           # list[dict] (per bestand)
         self._gezien = set()           # dedup-sleutels
         self.kluis = IntegriteitsKluis(kluis_pad) if kluis_pad else None
+        # corpus-brede accumulatoren voor de ONTDEKKINGSLAAG (anomalie i.p.v. signatuur)
+        self.corpus = {
+            "oid_roots": Counter(),          # elke gebruikte OID-autoriteit
+            "code_systems": Counter(),       # elk codeSystem
+            "codes": defaultdict(Counter),   # codeSystem -> Counter(code)
+            "actoren": defaultdict(set),     # numeriek ID -> set(bestanden)
+            "namespaces": Counter(),         # elke XML-namespace
+            "tijdzones": Counter(),          # elke tijdzone-offset
+            "macs": defaultdict(set),        # UUIDv1-node -> set(bestanden)
+            "setids": defaultdict(set),      # setId -> set(versionNumber)
+        }
 
     # — registratie (met dedup op techniek+pad+detail) —
     def vind(self, techniek, bron, detail, waarde="M", grond="", universeel=False):
@@ -510,6 +546,8 @@ class ForensicEngineV18:
         if v1:
             macs = Counter(x[0] for x in v1)
             tijden = sorted(x[1] for x in v1 if x[1])
+            for mac in macs:
+                self.corpus["macs"][mac].add(pathlib.Path(bron).name)
             self.vind("UUIDv1: machine-identiteit en tijdstip", bron,
                       f"{len(v1)} tijdgebonden UUID's. Node(s): "
                       + "; ".join(f"{k} x{n}" for k, n in macs.most_common(5))
@@ -984,6 +1022,107 @@ class ForensicEngineV18:
                       "Dossier-marker(s) aangetroffen: " + ", ".join(gevonden),
                       "H", "AVG art. 5(1)(d); art. 32; art. 138ab Sr (computervredebreuk)")
 
+    # ════════════════════════════════════════════════════════════════════
+    #  ONTDEKKINGSLAAG — vindt zelf, sluit niet uit (anti-tunnelvisie)
+    #  Draait op ELKE tekst. Enumereert alles, voedt het corpus, en meldt
+    #  afwijkingen van de norm — zonder vaste lijst van "wat verdacht is".
+    # ════════════════════════════════════════════════════════════════════
+    def _ontdek(self, t, bron):
+        naam = pathlib.Path(bron).name
+        # 1. alle OID-autoriteiten (root=) — onbekende PREFIX wordt gemeld, niet genegeerd
+        for root in re.findall(r'root="([0-9][0-9.]{4,})"', t):
+            self.corpus["oid_roots"][root] += 1
+            if not any(root.startswith(p) for p in _BEKENDE_OID_PREFIXEN):
+                self.vind("onbekende identifier-autoriteit", bron,
+                          f"OID-root {root} hoort bij geen bekende zorgautoriteit "
+                          "(HL7/NL/Epic/IHE). Handmatig verifiëren — mogelijk nieuwe of "
+                          "niet-geregistreerde bron.",
+                          "M", "AVG art. 5(1)(d); art. 15 lid 1 sub g", True)
+        # 2. alle codeSystem + code-paren — onbekend codeSystem gemeld; alles verzameld
+        for cs, code in re.findall(
+                r'codeSystem="([0-9.]+)"[^>]*?\bcode="([^"]+)"', t) + \
+                [(cs, code) for code, cs in re.findall(
+                    r'\bcode="([^"]+)"[^>]*?codeSystem="([0-9.]+)"', t)]:
+            self.corpus["code_systems"][cs] += 1
+            self.corpus["codes"][cs][code] += 1
+            if cs not in _BEKENDE_CODESYSTEMEN:
+                self.vind("onbekend codeSystem", bron,
+                          f"codeSystem {cs} (code {code}) is geen standaard "
+                          "terminologie (SNOMED/LOINC/ICD/ATC/RxNorm/G-Standaard).",
+                          "M", "AVG art. 5(1)(d)", True)
+        # 3. alle numerieke identifiers (extension=/id) — voedt singleton-analyse;
+        #    herhaald-cijfer-placeholder wordt DIRECT gemeld (vangt 000000/999999 e.d.)
+        for ext in re.findall(r'extension="([0-9]{5,})"', t):
+            self.corpus["actoren"][ext].add(naam)
+            if len(set(ext)) == 1:
+                self.vind("placeholder-identifier (herhaald cijfer)", bron,
+                          f"identifier {ext} bestaat uit één herhaald cijfer: kenmerk van "
+                          "een opvul-/anonimisatiewaarde in plaats van een echte actor.",
+                          "H", "WGBO 7:454; AVG art. 5(1)(a)", True)
+        # 4. alle XML-namespaces
+        for ns in re.findall(r'xmlns(?::\w+)?="([^"]+)"', t):
+            self.corpus["namespaces"][ns] += 1
+        # 5. alle tijdzone-offsets (per bestand + corpus-breed)
+        for tz in re.findall(r'value="\d{8,14}([+\-]\d{4})"', t):
+            self.corpus["tijdzones"][tz] += 1
+        # 6. setId -> versienummers (cross-document rotatie-detectie in corpus)
+        sid = re.search(r'<setId\b[^>]*extension="([^"]+)"', t, re.I)
+        if sid:
+            for v in re.findall(r'<versionNumber\b[^>]*value="([^"]+)"', t, re.I) or ["?"]:
+                self.corpus["setids"][sid.group(1)].add(v)
+
+    # ── corpus-brede analyse: draait NA alle bestanden (zoals _nb224) ──
+    def _corpus_analyse(self):
+        cp = self.corpus
+        # singleton-actoren: numeriek ID dat in het HELE corpus één keer voorkomt
+        singletons = [k for k, files in cp["actoren"].items()
+                      if len(files) == 1 and len(k) >= 6 and len(set(k)) > 1]
+        if singletons:
+            self.vind("singleton-actor(en)", "[corpus]",
+                      f"{len(singletons)} numerieke identifier(s) komen in het hele corpus "
+                      f"exact één keer voor: {singletons[:12]}. Eenmalige actoren zijn "
+                      "kandidaat voor nadere identificatie (ongeïdentificeerde invoerder).",
+                      "M", "AVG art. 15 lid 1 sub g herkomst", True)
+        # zeldzame codes: waarden die corpus-breed één keer voorkomen
+        zeldzaam = []
+        for cs, teller in cp["codes"].items():
+            naam_cs = _BEKENDE_CODESYSTEMEN.get(cs, cs)
+            zeldzaam += [f"{naam_cs}:{code}" for code, n in teller.items() if n == 1]
+        if zeldzaam:
+            self.vind("zeldzame codering(en)", "[corpus]",
+                      f"{len(zeldzaam)} code(s) komen corpus-breed één keer voor "
+                      f"(mogelijk uitzonderlijk/afwijkend): {zeldzaam[:15]}",
+                      "L", "AVG art. 9 bijzondere persoonsgegevens", True)
+        # tijdzone-spreiding over het corpus
+        if len(cp["tijdzones"]) > 1:
+            self.vind("tijdzone-spreiding (corpus)", "[corpus]",
+                      f"het corpus bevat meerdere tijdzone-offsets: "
+                      f"{dict(cp['tijdzones'])}. Inconsistente offsets wijzen op "
+                      "verschillende generatiemachines/-momenten.",
+                      "M", "AVG art. 5(1)(d)", True)
+        # meerdere MAC-nodes (uit UUIDv1) over het corpus
+        if len(cp["macs"]) > 1:
+            self.vind("meerdere machine-identiteiten (corpus)", "[corpus]",
+                      "UUIDv1-nodes wijzen op meerdere aanmaakmachines: "
+                      + "; ".join(f"{mac} in {sorted(f)[:3]}"
+                                 for mac, f in list(cp["macs"].items())[:6]),
+                      "H", "AVG art. 5(1)(d); art. 15 lid 1 sub g", True)
+        # setId met meerdere versienummers = rotatie/herziening over documenten
+        for sid, versies in cp["setids"].items():
+            if len(versies) > 1:
+                self.vind("setId-rotatie (corpus)", "[corpus]",
+                          f"setId {sid} verschijnt met versienummers {sorted(versies)}: "
+                          "hetzelfde logische document bestaat in meerdere versies.",
+                          "M", "HL7 CDA R2 §4.3.1; AVG art. 18", True)
+        # volledige enumeratie zodat NIETS onzichtbaar blijft (analist ziet alles)
+        self.vind("corpus-overzicht (volledige enumeratie)", "[corpus]",
+                  f"OID-autoriteiten: {dict(cp['oid_roots'].most_common(20))} | "
+                  f"codeSystemen: {dict(cp['code_systems'].most_common(10))} | "
+                  f"namespaces: {list(cp['namespaces'])[:10]} | "
+                  f"tijdzones: {dict(cp['tijdzones'])} | "
+                  f"unieke actor-ID's: {len(cp['actoren'])}",
+                  "L", "referentie/overzicht")
+
     # ── HL7 CDA R2 (verdiept) ──
     def _cda(self, t, bron):
         kop = t[:6000].lower()
@@ -1145,10 +1284,12 @@ class ForensicEngineV18:
                 self._png(naam, raw)
             else:
                 txt = raw.decode("utf-8", "replace")
+                self._ontdek(txt[:2_000_000], naam)
                 self._unicode(txt[:2_000_000], naam)
                 self._medisch(txt[:2_000_000], naam)
                 self._cda(txt, naam)
                 self._fhir(txt, naam)
+                self._uuids(txt[:2_000_000], naam)
                 self._markers(txt[:2_000_000], naam)
                 self._blokken(raw[:1_000_000], naam)
         except Exception:
@@ -1201,15 +1342,30 @@ class ForensicEngineV18:
                     self._html(pad, raw)
                 if t == "json" or naam.endswith((".har", ".json")):
                     self._har(pad, raw)
+                self._ontdek(txt[:3_000_000], pad)          # ONTDEKKINGSLAAG eerst
                 self._unicode(txt[:3_000_000], pad)
                 self._medisch(txt[:3_000_000], pad)
                 self._cda(txt, pad)
                 self._fhir(txt, pad)
                 self._xdm_medmij(txt, pad)
+                self._uuids(txt[:3_000_000], pad)
                 self._nl_identifiers(txt[:3_000_000], pad)
                 self._med_codes(txt[:3_000_000], pad)
                 self._markers(txt[:3_000_000], pad)
                 self._blokken(raw[:2_000_000], pad)
+            else:
+                # niets stil wegslikken: onbekend/niet-geclassificeerd type melden
+                txt = raw.decode("utf-8", "replace")
+                if _plausibel(raw[:512]):
+                    self._ontdek(txt[:2_000_000], pad)
+                    self._unicode(txt[:2_000_000], pad)
+                    self._markers(txt[:2_000_000], pad)
+                elif t not in ("jpg", "gif", "gz", "bz2"):
+                    self.vind("onbekend/niet-geclassificeerd bestandstype", pad,
+                              f"type '{t}' wordt niet inhoudelijk ontleed; alleen hash, "
+                              "entropie, staart- en XOR-checks uitgevoerd. Handmatige "
+                              "inspectie aanbevolen zodat niets buiten beeld blijft.",
+                              "L", "AVG art. 5(1)(d)", True)
         except Exception as e:
             self.vind("scanfout", pad, str(e), "L")
 
@@ -1223,6 +1379,7 @@ class ForensicEngineV18:
             print(f"[{i}/{len(paden)}] {pathlib.Path(p).name[:60]}")
             self.scan_bestand(p)
         self._nb224()
+        self._corpus_analyse()   # ontdekkingslaag: corpus-brede afwijkingen
         print(f"\n[*] Klaar: {len(self.bevindingen)} bevindingen.")
         return self.bevindingen
 
