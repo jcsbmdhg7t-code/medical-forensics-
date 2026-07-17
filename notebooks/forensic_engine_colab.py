@@ -1,21 +1,35 @@
 # -*- coding: utf-8 -*-
 """
 ================================================================================
- FORENSISCHE ENGINE — GECONSOLIDEERD (Google Colab)
+ FORENSISCHE ENGINE — GECONSOLIDEERD + UITGEBREID (Google Colab)
  Dossier Grothe — Rechtbank Noord-Holland C/15/376914
 ================================================================================
 Dit bestand vervangt ALLE losse Colab-cellen (engines V7 t/m V17, de diverse
-report-/dashboard-/timestomping-cellen en de dubbele integrity-vault-definities).
+report-/dashboard-/timestomping-cellen en de dubbele integrity-vault-definities)
+en breidt ze uit met de domeinspecifieke detectie uit de forensische skills.
 Eén engine, één rapportgenerator, één Drive-helper, één timestomping-analyse.
 
-Alle uniek gebleken detectietechnieken uit de oude cellen zijn behouden:
+Behouden basistechnieken (uit de oude cellen):
   entropie + entropie-eilanden, XOR-bruteforce, recursieve codec-ketens
   (base64/32/85, hex, gzip/zlib/deflate/bzip2/lzma), zero-width/bidi/homoglyphs/
   Unicode-tags-steganografie, ZIP-inversie + ZIP-residu, PDF-lagen (incrementele
   update, SMask, onzichtbare/witte/mini/buiten-vlak tekst, OCG, hidden annotaties),
   Office (w:vanish, tracked changes, rsid, verborgen sheets/rijen, wees-strings),
-  PNG-chunks, staartdata, CDA/ext=999999/legalAuthenticator, UUIDv1-MAC+tijd,
-  BSN 11-proef, en de "gelijke lengte / andere hash"-signatuur (NB-224).
+  PNG-chunks, staartdata, UUIDv1-MAC+tijd, BSN 11-proef, en de
+  "gelijke lengte / andere hash"-signatuur (NB-224).
+
+Nieuw / uitgebreid (domeinspecifiek):
+  NL zorg-identifiers met OID-context (VEKTIS-AGB, BIG, UZI, URA, Epic-OID-roots),
+  verdachte actoren (999999 / 470154242 / 373282512 / nullFlavor=UNK),
+  forensische SNOMED-codes (361055000 drugs) en LOINC-secties (10160-0 medicatie),
+  CDA-verdieping (setId/versionNumber-rotatie, tijdzone-anomalie, parentDocument),
+  FHIR (Bundle/Patient/Observation, versionId-escalatie), IHE XDM METADATA.XML,
+  MedMij-portabiliteitsrapport, HAR/Proxyman + dossier-sabotagemarkers
+  (ajaxRequestInterceptor, epic.eci, spaarne-prd, hideProviderName, override.css),
+  Apple .ips/.crash/.diag, magic-byte-mismatch, Office-documentmetadata,
+  recursieve archief-extractie + matroesjka-reparatie. Bevindingen dragen
+  bewijswaarde (H/M/L) en juridische grondslag (AVG, WGBO 7:454, WABVPZ,
+  NEN 7510, HL7 CDA R2, Sr).
 
 GEBRUIK IN COLAB
 ----------------
@@ -188,6 +202,51 @@ _POWERSHELL = re.compile(
     r"(?i)(Invoke-Expression|IEX|EncodedCommand|WindowStyle\s+Hidden|"
     r"DownloadString|Net\.WebClient|powershell\.exe)")
 
+# — NL zorg-identifier OID-roots (bron: skill identifier-systems) —
+_OID_SYSTEM = {
+    "2.16.840.1.113883.2.4.6.1": "VEKTIS AGB",
+    "2.16.528.1.1007.5.1": "BIG",
+    "2.16.528.1.1007.3.1": "UZI",
+    "2.16.528.1.1007.3.3": "URA",
+    "2.16.840.1.113883.6.96": "SNOMED CT",
+    "2.16.840.1.113883.6.1": "LOINC",
+    "2.16.840.1.113883.2.4.6.3": "BSN (NL persoon)",
+    "1.2.840.114350.1.1": "Epic (versie)",
+    "1.2.840.114350.1.13.201.2.7.2.836982": "Epic Practitioner-ID",
+    "1.2.840.114350.1.13.201.2.7.1.1": "Epic setId-root",
+}
+# verdachte/ongeïdentificeerde actoren uit het dossier
+_VERDACHTE_ACTOREN = {
+    "999999": "anoniem — geen BIG/VEKTIS (WGBO 7:454)",
+    "470154242": "ongeïdentificeerd — Care Team-wijziging",
+    "373282512": "geen BIG/VEKTIS — invoer SNOMED 361055000",
+}
+# forensisch relevante SNOMED-codes (stigmatiserend / gevoelig)
+_SNOMED_FORENSISCH = {
+    "361055000": "drugsgebruik (stigmatiserende codering)",
+    "41021000146105": "neusdruppelmisbruik",
+    "73425007": "vermoeidheid",
+}
+# forensisch relevante LOINC-secties (verwijdering = suppressie-indicator)
+_LOINC_FORENSISCH = {
+    "10160-0": "Medicatie (verdwijning = suppressie, WGBO 7:454 lid 3)",
+    "11450-4": "Probleemlijst",
+    "29762-2": "Sociale anamnese",
+    "48768-6": "Betalers",
+    "8716-3": "Vitale functies",
+}
+# dossier-specifieke sabotage-/injectiemarkers (portaal/netwerk)
+_SABOTAGE_MARKERS = [
+    "ajaxrequestinterceptor", "__startfilteringerrors", "polyfillcustomevent",
+    "epic.eci", "spaarne-prd", "hideprovidername", "override.css",
+    "dom_verwijderd", "coc_onvolledig", "57.150.81.65", "za=psyq@medmij",
+    "ng-validate.js",
+]
+# XML/HL7-namespaces
+_NS_CDA = "urn:hl7-org:v3"
+_NS_XDM = "urn:oasis:names:tc:ebxml-regrep:xsd:lcm:3.0"
+_NS_MEDMIJ = "afsprakenstelsel.medmij.nl/portabiliteitsrapport"
+
 
 def _script_van(c):
     o = ord(c)
@@ -232,10 +291,15 @@ class ForensicEngineV18:
     def __init__(self, kluis_pad=None):
         self.bevindingen = []          # list[dict]
         self.inventaris = []           # list[dict] (per bestand)
+        self._gezien = set()           # dedup-sleutels
         self.kluis = IntegriteitsKluis(kluis_pad) if kluis_pad else None
 
-    # — registratie —
+    # — registratie (met dedup op techniek+pad+detail) —
     def vind(self, techniek, bron, detail, waarde="M", grond="", universeel=False):
+        sleutel = (techniek, str(bron), detail)
+        if sleutel in self._gezien:
+            return
+        self._gezien.add(sleutel)
         self.bevindingen.append({
             "techniek": techniek,
             "bestand": pathlib.Path(bron).name,
@@ -330,10 +394,19 @@ class ForensicEngineV18:
     def _xor(self, raw, bron):
         if len(raw) < 20:
             return
+        head = raw[:200]
+        # XOR-obfuscatie verbergt payload in BINAIRE data; leesbare tekst overslaan
+        if _plausibel(head):
+            return
+        low0 = head.lower()
+        if any(k in low0 for k in (b"http", b"cmd", b"powershell")):
+            return  # keyword staat al leesbaar in het bestand → niet verborgen
         for key in range(1, 256):
-            dec = bytes(b ^ key for b in raw[:120])
+            if key == 0x20:
+                continue  # 0x20 is puur hoofdletter-omkering → vals-positief op tekst
+            dec = bytes(b ^ key for b in head[:120])
             low = dec.lower()
-            if b"http" in low or b"cmd" in low or b"eval" in low or b"powershell" in low:
+            if b"http" in low or b"cmd" in low or b"powershell" in low:
                 self.vind("XOR-versluiering", bron,
                           f"XOR-sleutel 0x{key:02x} onthult leesbare payload: {dec[:80]!r}",
                           "H", "AVG art. 5(1)(d); art. 12 lid 1", True)
@@ -412,32 +485,6 @@ class ForensicEngineV18:
                 self.vind(f"medische context: {cat}", bron,
                           f"{len(treffers)} match(es)", "L",
                           "AVG art. 9 bijzondere persoonsgegevens")
-
-    # ── CDA / HL7-v3 ──
-    def _cda(self, t, bron):
-        kop = t[:4000].lower()
-        if "clinicaldocument" not in kop and "urn:hl7-org:v3" not in kop:
-            return
-        auteurblokken = re.findall(r"<author\b.*?</author>", t, re.S | re.I)
-        exts = []
-        for blk in auteurblokken:
-            exts += re.findall(r'<id\b[^>]*\bextension="([^"]+)"', blk, re.I)
-        c = Counter(exts)
-        legal = "legalauthenticator" in t.lower()
-        self.vind("CDA-structuur", bron,
-                  f"{len(auteurblokken)} auteurblokken, {len(c)} unieke ext; "
-                  f"legalAuthenticator {'aanwezig' if legal else 'ONTBREEKT'}",
-                  "M", "WGBO 7:454; AVG art. 5(1)(d)")
-        if c.get("999999"):
-            self.vind("anonieme auteur ext=999999", bron,
-                      f"{c['999999']} van {len(exts)} auteurverwijzingen zijn volledig "
-                      "anoniem: geen naam, geen BIG, geen AGB.",
-                      "H", "AVG art. 15 lid 1 sub g; art. 12 lid 1")
-        if not legal:
-            self.vind("legalAuthenticator ontbreekt", bron,
-                      "Het document draagt geen juridische ondertekenaar.",
-                      "M", "WGBO 7:454")
-        self._uuids(t, bron)
 
     # ── UUIDv1 → MAC + tijdstip ──
     def _uuids(self, t, bron):
@@ -665,6 +712,31 @@ class ForensicEngineV18:
                           f"{len(wees)} teksten staan in het bestand maar worden door geen "
                           f"cel gebruikt (resten van verwijderde inhoud): {wees[:6]}",
                           "H", "AVG art. 5(1)(d); art. 15", True)
+        # docProps (auteur/laatst-gewijzigd-door/revisie/bedrijf)
+        for docprop in ("docProps/core.xml", "docProps/app.xml"):
+            if docprop in n:
+                try:
+                    x = z.read(docprop).decode("utf-8", "replace")
+                except Exception:
+                    continue
+                velden = {}
+                for tag in ("dc:creator", "cp:lastModifiedBy", "cp:revision",
+                            "dcterms:created", "dcterms:modified", "Company",
+                            "Application", "TotalTime"):
+                    m = re.search(rf"<{tag}[^>]*>([^<]*)</{tag}>", x)
+                    if m and m.group(1).strip():
+                        velden[tag.split(":")[-1]] = m.group(1).strip()
+                if velden:
+                    self.vind("Office-documentmetadata", pad,
+                              "; ".join(f"{k}={v}" for k, v in velden.items()),
+                              "M", "AVG art. 5(1)(d); art. 15 lid 1 sub g herkomst")
+                cre = velden.get("creator")
+                lmb = velden.get("lastModifiedBy")
+                if cre and lmb and cre != lmb:
+                    self.vind("auteur is niet de laatste bewerker", pad,
+                              f"aangemaakt door {cre!r}, laatst gewijzigd door {lmb!r}: "
+                              "het document is door een ander bewerkt dan de opsteller.",
+                              "M", "AVG art. 5(1)(d)", True)
 
     # ── ZIP-residu ──
     def _zip_residu(self, pad, raw):
@@ -842,6 +914,245 @@ class ForensicEngineV18:
                       "PK-header aangetroffen aan het EINDE van het bestand: klassieke "
                       "anti-forensische omkering.", "H",
                       "AVG art. 5(1)(d); art. 32", True)
+            # poging tot reparatie + recursieve scan van de inhoud
+            try:
+                hersteld = raw[::-1]
+                if hersteld.startswith(b"PK\x03\x04"):
+                    z = zipfile.ZipFile(io.BytesIO(hersteld))
+                    for nm in z.namelist()[:50]:
+                        self._scan_bytes(z.read(nm), f"{pathlib.Path(pad).name}::{nm}", 1)
+            except Exception:
+                pass
+
+    # ── magic-byte-mismatch (extensie vs. echte inhoud) ──
+    def _magic_mismatch(self, pad, raw, t):
+        ext = pathlib.Path(pad).suffix.lower().lstrip(".")
+        norm = {"htm": "html", "jpeg": "jpg", "har": "json",
+                "cda": "xml", "xsl": "xml", "tif": "tiff"}.get(ext, ext)
+        # alleen melden als extensie een echt formaat claimt dat afwijkt van de magic
+        bekend = {"pdf", "png", "jpg", "gif", "zip", "docx", "xlsx", "pptx", "gz", "bz2"}
+        if norm in bekend and t != norm and not (norm in ("docx", "xlsx", "pptx") and t == "zip"):
+            self.vind("magic-byte-mismatch", pad,
+                      f"Bestand heet .{ext} maar de bytes zijn een {t}. Het bestandstype is "
+                      "vermomd.", "H", "AVG art. 5(1)(d); art. 225 Sr", True)
+
+    # ── NL zorg-identifiers (OID-context) + verdachte actoren ──
+    def _nl_identifiers(self, t, bron):
+        # <id root="OID" extension="VALUE"/>
+        paren = re.findall(r'root="([0-9.]+)"[^>]*?extension="([^"]*)"', t)
+        paren += [(r, e) for e, r in re.findall(
+            r'extension="([^"]*)"[^>]*?root="([0-9.]+)"', t)]
+        gezien = Counter()
+        for root, ext in paren:
+            sys = _OID_SYSTEM.get(root)
+            if sys:
+                gezien[sys] += 1
+        if gezien:
+            self.vind("NL zorg-identifiers", bron,
+                      "; ".join(f"{k} x{v}" for k, v in gezien.most_common()),
+                      "L", "AVG art. 15 lid 1 sub g herkomst")
+        # verdachte/ongeïdentificeerde actoren
+        for ext, uitleg in _VERDACHTE_ACTOREN.items():
+            if re.search(rf'extension="{re.escape(ext)}"', t) or f'>{ext}<' in t:
+                self.vind(f"verdachte actor ext={ext}", bron, uitleg,
+                          "H", "WGBO 7:454; AVG art. 5(1)(a); art. 15 lid 1 sub g")
+        if re.search(r'nullFlavor="UNK"', t):
+            n = len(re.findall(r'nullFlavor="UNK"', t))
+            self.vind("nullFlavor=UNK (identiteit onbekend)", bron,
+                      f"{n}x nullFlavor=UNK: identiteit van auteur/ondertekenaar is als "
+                      "onbekend gemarkeerd.", "M", "WGBO 7:454; AVG art. 5(1)(a)")
+
+    # ── forensische SNOMED/LOINC-codes ──
+    def _med_codes(self, t, bron):
+        for code, uitleg in _SNOMED_FORENSISCH.items():
+            if code in t:
+                self.vind(f"SNOMED {code}", bron,
+                          f"{uitleg}. Stigmatiserende codering vereist onderbouwing.",
+                          "H", "AVG art. 9 bijzondere persoonsgegevens; WGBO 7:454")
+        for code, uitleg in _LOINC_FORENSISCH.items():
+            if code in t:
+                waarde = "H" if code == "10160-0" else "L"
+                self.vind(f"LOINC {code}", bron, uitleg, waarde,
+                          "WGBO 7:454; AVG art. 15/20")
+
+    # ── dossier-sabotagemarkers ──
+    def _markers(self, t, bron):
+        low = t.lower()
+        gevonden = [m for m in _SABOTAGE_MARKERS if m in low]
+        if gevonden:
+            self.vind("sabotage-/injectiemarker", bron,
+                      "Dossier-marker(s) aangetroffen: " + ", ".join(gevonden),
+                      "H", "AVG art. 5(1)(d); art. 32; art. 138ab Sr (computervredebreuk)")
+
+    # ── HL7 CDA R2 (verdiept) ──
+    def _cda(self, t, bron):
+        kop = t[:6000].lower()
+        if "clinicaldocument" not in kop and _NS_CDA not in kop:
+            return
+        auteurblokken = re.findall(r"<author\b.*?</author>", t, re.S | re.I)
+        exts = []
+        for blk in auteurblokken:
+            exts += re.findall(r'<id\b[^>]*\bextension="([^"]+)"', blk, re.I)
+        c = Counter(exts)
+        legal = "legalauthenticator" in t.lower()
+        ver = sorted(set(re.findall(r'<versionNumber\b[^>]*value="([^"]+)"', t, re.I)))
+        sid = re.search(r'<setId\b[^>]*extension="([^"]*)"', t, re.I)
+        nf = Counter(re.findall(r'nullFlavor="([A-Z]+)"', t))
+        parent = "parentdocument" in t.lower()
+        self.vind("CDA-structuur", bron,
+                  f"{len(auteurblokken)} auteurblokken, {len(c)} unieke ext; "
+                  f"versionNumber={ver or '-'}; setId={sid.group(1) if sid else '-'}; "
+                  f"nullFlavor {sum(nf.values())} ({dict(nf.most_common(4))}); "
+                  f"parentDocument={'ja' if parent else 'nee'}; "
+                  f"legalAuthenticator {'aanwezig' if legal else 'ONTBREEKT'}",
+                  "M", "WGBO 7:454; HL7 CDA R2 §4.3.1")
+        if c.get("999999"):
+            self.vind("anonieme auteur ext=999999", bron,
+                      f"{c['999999']} van {len(exts)} auteurverwijzingen zijn volledig "
+                      "anoniem: geen naam, geen BIG, geen AGB.",
+                      "H", "WGBO 7:454; AVG art. 5(1)(a); art. 15 lid 1 sub g")
+        if not legal:
+            self.vind("legalAuthenticator ontbreekt", bron,
+                      "Het document draagt geen juridische ondertekenaar.",
+                      "M", "WGBO 7:454")
+        if ver and any(int(x) > 1 for x in ver if x.isdigit()):
+            self.vind("versie-escalatie (CDA)", bron,
+                      f"versionNumber {ver}: document is na eerste vaststelling herzien. "
+                      "Bij bevriezing/inzageverzoek is dit relevant.",
+                      "M", "AVG art. 18; HL7 CDA R2 §4.3.1")
+        # tijdzone-anomalie: +0000 naast +0200 in dezelfde effectiveTime-tijden
+        tzs = set(re.findall(r'value="\d{8,14}([+\-]\d{4})"', t))
+        if len(tzs) > 1:
+            self.vind("tijdzone-anomalie (CDA)", bron,
+                      f"meerdere tijdzone-offsets in één document: {sorted(tzs)}. "
+                      "+0000 naast +0200 wijst op machinematige (her)generatie.",
+                      "M", "AVG art. 5(1)(d)", True)
+        self._nl_identifiers(t, bron)
+        self._med_codes(t, bron)
+        self._uuids(t, bron)
+
+    # ── FHIR (Bundle/Patient/Observation) ──
+    def _fhir(self, t, bron):
+        if '"resourceType"' not in t:
+            return
+        typen = Counter(re.findall(r'"resourceType"\s*:\s*"([^"]+)"', t))
+        if not typen:
+            return
+        self.vind("FHIR-resources", bron,
+                  "; ".join(f"{k} x{v}" for k, v in typen.most_common(8)),
+                  "L", "AVG art. 15/20 dataportabiliteit")
+        vids = re.findall(r'"versionId"\s*:\s*"([^"]+)"', t)
+        if vids and any(v.isdigit() and int(v) > 1 for v in vids):
+            self.vind("FHIR versie-escalatie", bron,
+                      f"meta.versionId {sorted(set(vids))}: resource(s) zijn na aanmaak "
+                      "gewijzigd.", "M", "AVG art. 18")
+        self._med_codes(t, bron)
+
+    # ── IHE XDM METADATA.XML + MedMij-portabiliteitsrapport ──
+    def _xdm_medmij(self, t, bron):
+        low = t.lower()
+        if _NS_XDM in low or "submissionset" in low:
+            self.vind("IHE XDM metadata", bron,
+                      "XDM SubmissionSet-metadata aangetroffen. Verifieer de SHA-1 "
+                      "integriteitswaarde tegen de daadwerkelijke documentinhoud.",
+                      "L", "NEN 7510; AVG art. 5(1)(f)")
+        if _NS_MEDMIJ in low or "portabiliteitsrapport" in low:
+            za = Counter(re.findall(r'za="?([A-Za-z0-9_@.\-]+)"?', t))
+            self.vind("MedMij-portabiliteitsrapport", bron,
+                      f"portabiliteitsrapport; {sum(za.values())} verzoekregels over "
+                      f"{len(za)} zorgaanbieder(s). LET OP: entries zijn eigen "
+                      "PGO-opvragingen, niet per se onrechtmatig.",
+                      "L", "AVG art. 15/20; WABVPZ")
+
+    # ── Apple .ips / .crash / .diag ──
+    def _apple(self, pad, raw):
+        naam = pathlib.Path(pad).name.lower()
+        if not naam.endswith((".ips", ".crash", ".diag")):
+            return
+        t = raw.decode("utf-8", "replace")
+        bug = re.search(r'"bug_type"\s*:\s*"?(\d+)"?', t)
+        proc = re.search(r'"procName"\s*:\s*"([^"]+)"', t)
+        obo = re.findall(r'"On Behalf Of"|onBehalfOf|"responsible"\s*:\s*"([^"]+)"', t)
+        detail = []
+        if bug:
+            detail.append(f"bug_type={bug.group(1)}"
+                          + (" (resource/aandacht)" if bug.group(1) == "145" else ""))
+        if proc:
+            detail.append(f"proces={proc.group(1)}")
+        proces_flags = {"bird": "iCloud-sync", "mediaanalysisd": "ML-analyse",
+                        "callservicesd": "camera/telefonie"}
+        for p, uit in proces_flags.items():
+            if re.search(rf'"{p}"', t):
+                detail.append(f"{p}={uit}")
+        if obo:
+            detail.append(f"On-Behalf-Of/responsible: {[o for o in obo if o][:3]}")
+        if "UNKNOWN" in t:
+            detail.append("UNKNOWN-veld aanwezig (anomalie)")
+        self.vind("Apple-diagnostiek", pad,
+                  "; ".join(detail) or "diagnosticbestand herkend",
+                  "M" if ("UNKNOWN" in t or (bug and bug.group(1) == "145")) else "L",
+                  "AVG art. 5(1)(d) systeemherkomst")
+
+    # ── HAR / Proxyman netwerk-capture ──
+    def _har(self, pad, raw):
+        try:
+            data = json.loads(raw.decode("utf-8", "replace"))
+        except Exception:
+            return
+        entries = (data.get("log", {}) or {}).get("entries") if isinstance(data, dict) else None
+        if not entries:
+            return
+        urls = Counter()
+        for e in entries[:5000]:
+            u = ((e.get("request") or {}).get("url") or "")
+            if u:
+                m = re.match(r"https?://([^/]+)", u)
+                if m:
+                    urls[m.group(1)] += 1
+        self.vind("HAR/netwerk-capture", pad,
+                  f"{len(entries)} requests over {len(urls)} host(s). Top: "
+                  + "; ".join(f"{k} x{v}" for k, v in urls.most_common(6)),
+                  "L", "AVG art. 5(1)(d)")
+        # sabotagemarkers over de volledige capture
+        self._markers(raw.decode("utf-8", "replace")[:5_000_000], pad)
+
+    # ── byte-scan (nested archief-members, matroesjka-inhoud) ──
+    def _scan_bytes(self, raw, naam, diepte=0):
+        if diepte > 3 or not raw:
+            return
+        t = self._soort(naam, raw)
+        try:
+            self._staart(naam, raw, t)
+            self._xor(raw, naam)
+            if t == "pdf":
+                # PDF via bytes: alleen de goedkope byte-checks
+                eofs = raw.count(b"%%EOF")
+                if eofs > 1:
+                    self.vind("incrementele update (genest)", naam,
+                              f"{eofs}x %%EOF in genest PDF.", "H",
+                              "AVG art. 5(1)(d); art. 32")
+            elif t in ("docx", "xlsx", "pptx"):
+                self._office(naam, raw)
+            elif t == "zip":
+                self._zip_residu(naam, raw)
+                try:
+                    z = zipfile.ZipFile(io.BytesIO(raw))
+                    for nm in z.namelist()[:50]:
+                        self._scan_bytes(z.read(nm), f"{naam}::{nm}", diepte + 1)
+                except Exception:
+                    pass
+            elif t == "png":
+                self._png(naam, raw)
+            else:
+                txt = raw.decode("utf-8", "replace")
+                self._unicode(txt[:2_000_000], naam)
+                self._medisch(txt[:2_000_000], naam)
+                self._cda(txt, naam)
+                self._fhir(txt, naam)
+                self._markers(txt[:2_000_000], naam)
+                self._blokken(raw[:1_000_000], naam)
+        except Exception:
+            pass
 
     # ── één bestand ──
     def scan_bestand(self, pad):
@@ -861,26 +1172,43 @@ class ForensicEngineV18:
                           f"SHA-256 veranderd sinds {vorige.get('gezien', '?')} "
                           f"({vorige['sha256'][:16]} -> {sha[:16]}).",
                           "H", "AVG art. 5(1)(d); art. 32", True)
+        naam = pathlib.Path(pad).name.lower()
         try:
             self._zip_inversie(pad, raw)
+            self._magic_mismatch(pad, raw, t)
             self._staart(pad, raw, t)
             self._entro(pad, raw, t)
             self._xor(raw, pad)
+            if naam.endswith((".ips", ".crash", ".diag")):
+                self._apple(pad, raw)
             if t == "pdf":
                 self._pdf(pad, raw)
             elif t in ("docx", "xlsx", "pptx"):
                 self._office(pad, raw); self._zip_residu(pad, raw)
             elif t == "zip":
                 self._zip_residu(pad, raw)
+                try:
+                    z = zipfile.ZipFile(io.BytesIO(raw))
+                    for nm in z.namelist()[:50]:
+                        self._scan_bytes(z.read(nm), f"{pathlib.Path(pad).name}::{nm}", 1)
+                except Exception:
+                    pass
             elif t == "png":
                 self._png(pad, raw)
             elif t in ("xml", "html", "txt", "json", "csv", "log", "bin"):
                 txt = raw.decode("utf-8", "replace")
                 if t == "html":
                     self._html(pad, raw)
+                if t == "json" or naam.endswith((".har", ".json")):
+                    self._har(pad, raw)
                 self._unicode(txt[:3_000_000], pad)
                 self._medisch(txt[:3_000_000], pad)
                 self._cda(txt, pad)
+                self._fhir(txt, pad)
+                self._xdm_medmij(txt, pad)
+                self._nl_identifiers(txt[:3_000_000], pad)
+                self._med_codes(txt[:3_000_000], pad)
+                self._markers(txt[:3_000_000], pad)
                 self._blokken(raw[:2_000_000], pad)
         except Exception as e:
             self.vind("scanfout", pad, str(e), "L")
