@@ -9,13 +9,23 @@ report-/dashboard-/timestomping-cellen en de dubbele integrity-vault-definities)
 en breidt ze uit met de domeinspecifieke detectie uit de forensische skills.
 Eén engine, één rapportgenerator, één Drive-helper, één timestomping-analyse.
 
-Behouden basistechnieken (uit de oude cellen):
-  entropie + entropie-eilanden, XOR-bruteforce, recursieve codec-ketens
-  (base64/32/85, hex, gzip/zlib/deflate/bzip2/lzma), zero-width/bidi/homoglyphs/
-  Unicode-tags-steganografie, ZIP-inversie + ZIP-residu, PDF-lagen (incrementele
-  update, SMask, onzichtbare/witte/mini/buiten-vlak tekst, OCG, hidden annotaties),
-  Office (w:vanish, tracked changes, rsid, verborgen sheets/rijen, wees-strings),
-  PNG-chunks, staartdata, UUIDv1-MAC+tijd, BSN 11-proef, en de
+ALLE coderingen (recursief, met CyberChef-link per fragment):
+  binair: base64, base64url, base32, base85, ascii85, base58, base16/hex,
+          gzip, zlib, deflate-raw, bzip2, lzma/xz — inclusief UTF-16-payloads
+          (bv. PowerShell -EncodedCommand) en geketende lagen;
+  tekst:  URL-encoding (%XX), HTML-entities (&#..;), unicode-/hex-escapes
+          (\\u \\x), quoted-printable (=XX), ROT13.
+
+ALLE manipulatie-indicatoren:
+  entropie + entropie-eilanden, XOR-bruteforce (binair), zero-width/bidi/
+  homoglyphs/Unicode-tags-steganografie, verdachte status-/zichtbaarheidsvelden
+  (is_deleted/hidden/override/show_patient/…), linguïstische hedging, IP-/e-mail-/
+  secret-extractie, ZIP-inversie + ZIP-residu, PDF-lagen (incrementele update,
+  amputatie/ontbrekende %%EOF, SMask, onzichtbare/witte/mini/buiten-vlak tekst,
+  OCG, hidden annotaties, actieve inhoud JS/EmbeddedFile/OpenAction/Launch,
+  CID/CMap glyph-hercodering), Office (w:vanish, tracked changes, rsid, verborgen
+  sheets/rijen, wees-strings, documentmetadata), PNG-chunks, staartdata,
+  magic-byte-mismatch, UUIDv1-MAC+tijd, BSN 11-proef, en de
   "gelijke lengte / andere hash"-signatuur (NB-224).
 
 ONTDEKKINGSLAAG (anti-tunnelvisie) — vindt zelf, sluit niet uit:
@@ -296,7 +306,48 @@ def _plausibel(d):
                                           b"\x89PNG", b"{", b"[", b"<?xml", b"BZh")):
         return True
     s = d[:512]
-    return sum(1 for x in s if 32 <= x < 127 or x in (9, 10, 13)) / max(1, len(s)) > 0.85
+    if sum(1 for x in s if 32 <= x < 127 or x in (9, 10, 13)) / max(1, len(s)) > 0.85:
+        return True
+    # UTF-16 (bv. PowerShell -EncodedCommand is base64 van UTF-16LE)
+    for enc in ("utf-16-le", "utf-16-be"):
+        try:
+            txt = d.decode(enc)
+            leesbaar = sum(1 for c in txt[:256]
+                           if c.isprintable() or c in "\t\n\r")
+            if leesbaar / max(1, len(txt[:256])) > 0.85:
+                return True
+        except Exception:
+            pass
+    return False
+
+
+_B58_ALFABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _b58decode(data):
+    """Base58 (Bitcoin-alfabet) — geen stdlib. Geeft bytes of None."""
+    if not re.fullmatch(rb"[1-9A-HJ-NP-Za-km-z]{24,}", data):
+        return None
+    getal = 0
+    for c in data:
+        idx = _B58_ALFABET.find(c)
+        if idx < 0:
+            return None
+        getal = getal * 58 + idx
+    ruw = getal.to_bytes((getal.bit_length() + 7) // 8, "big") if getal else b""
+    voor = len(data) - len(data.lstrip(b"1"))
+    return b"\x00" * voor + ruw
+
+
+def _cyberchef(data):
+    """Analist-link: opent het fragment in CyberChef (Magic-recept)."""
+    try:
+        if isinstance(data, bytes):
+            data = data.decode("utf-8", "ignore")
+        enc = base64.b64encode(data.encode()).decode()
+        return f"https://gchq.github.io/CyberChef/#recipe=Magic(3,false,false,'')&input={enc[:2000]}"
+    except Exception:
+        return ""
 
 
 def _valide_bsn(bsn):
@@ -377,23 +428,28 @@ class ForensicEngineV18:
         return {"htm": "html", "jpeg": "jpg", "har": "json",
                 "cda": "xml", "xsl": "xml"}.get(s, s or "bin")
 
-    # ── recursieve codec-ketens (base64/32/85, hex, gzip/zlib/deflate/bz2/lzma) ──
+    # ── recursieve BINAIRE codec-ketens (alle stdlib-varianten) ──
     def _pel(self, raw, bron, keten="", diep=0):
-        if diep > 5 or not raw or len(raw) > 50_000_000:
+        if diep > 6 or not raw or len(raw) > 50_000_000:
             return
         pogingen = [
             ("base64", lambda r: base64.b64decode(r, validate=True)
              if re.fullmatch(rb"[A-Za-z0-9+/]{24,}={0,2}", r) and len(r) % 4 == 0 else None),
+            ("base64url", lambda r: base64.urlsafe_b64decode(r + b"=" * (-len(r) % 4))
+             if re.fullmatch(rb"[A-Za-z0-9_\-]{24,}={0,2}", r) else None),
             ("base32", lambda r: base64.b32decode(r)
              if re.fullmatch(rb"[A-Z2-7]{24,}=*", r) and len(r) % 8 == 0 else None),
             ("base85", lambda r: base64.b85decode(r)),
-            ("hex", lambda r: bytes.fromhex(r.decode("ascii"))
+            ("ascii85", lambda r: base64.a85decode(r)),
+            ("base58", _b58decode),
+            ("base16/hex", lambda r: bytes.fromhex(r.decode("ascii"))
              if re.fullmatch(rb"[0-9a-fA-F]{32,}", r) and len(r) % 2 == 0 else None),
             ("gzip", lambda r: gzip.decompress(r) if r[:2] == b"\x1f\x8b" else None),
             ("zlib", lambda r: zlib.decompress(r)),
-            ("deflate", lambda r: zlib.decompress(r, -15)),
+            ("deflate-raw", lambda r: zlib.decompress(r, -15)),
             ("bzip2", lambda r: bz2.decompress(r) if r[:3] == b"BZh" else None),
-            ("lzma", lambda r: lzma.decompress(r) if r[:6] == b"\xfd7zXZ\x00" else None),
+            ("lzma/xz", lambda r: lzma.decompress(r)
+             if r[:6] == b"\xfd7zXZ\x00" or r[:1] == b"\x5d" else None),
         ]
         for naam, fn in pogingen:
             try:
@@ -403,10 +459,121 @@ class ForensicEngineV18:
             if not d or not _plausibel(d):
                 continue
             k = f"{keten}->{naam}" if keten else naam
+            # UTF-16-payload leesbaar maken (PowerShell EncodedCommand e.d.)
+            toon = d[:110]
+            for enc in ("utf-8", "utf-16-le"):
+                try:
+                    s = d.decode(enc)
+                    if sum(c.isprintable() for c in s[:80]) / max(1, len(s[:80])) > 0.85:
+                        toon = s[:110].encode("utf-8", "replace")
+                        break
+                except Exception:
+                    pass
             self.vind(f"codec: {k}", bron,
-                      f"{len(raw)} -> {len(d)} bytes. Inhoud: {d[:110]!r}",
+                      f"{len(raw)} -> {len(d)} bytes. Inhoud: {toon!r}. "
+                      f"CyberChef: {_cyberchef(raw[:1500])}",
                       "H" if diep else "M", "AVG art. 12 lid 1 leesbare vorm")
             self._pel(d, bron, k, diep + 1)
+
+    # ── inline TEKST-coderingen (URL, HTML-entity, unicode/hex-escape, QP, ROT13) ──
+    def _decodeer_tekst(self, t, bron):
+        import urllib.parse
+        import html as _html
+        import codecs as _codecs
+        melding = []
+        # URL-encoding (%XX) — alleen als er echt %XX in zit en decode iets verandert
+        if re.search(r"%[0-9A-Fa-f]{2}", t):
+            try:
+                dec = urllib.parse.unquote(t[:200000])
+                if dec != t[:200000]:
+                    hit = re.search(r"https?://\S+|cmd|powershell|<script", dec, re.I)
+                    if hit:
+                        melding.append(f"URL-decode onthult: {dec[max(0, hit.start()-10):hit.start()+70]!r}")
+            except Exception:
+                pass
+        # HTML-entities (&#dd; &#xhh; &amp; enz.)
+        if re.search(r"&#x?[0-9A-Fa-f]+;|&[a-zA-Z]{2,10};", t):
+            try:
+                dec = _html.unescape(t[:200000])
+                if dec != t[:200000] and re.search(r"https?://|<script|javascript:", dec, re.I):
+                    melding.append("HTML-entity-decode onthult verborgen markup/URL")
+            except Exception:
+                pass
+        # Unicode-escapes (\uXXXX) en hex-escapes (\xXX)
+        if re.search(r"\\u[0-9A-Fa-f]{4}|\\x[0-9A-Fa-f]{2}", t):
+            try:
+                dec = _codecs.decode(t[:100000], "unicode_escape")
+                if re.search(r"https?://|cmd|powershell|eval", dec, re.I):
+                    melding.append("\\u/\\x-escape onthult leesbare payload")
+            except Exception:
+                pass
+        # Quoted-printable (=XX), veelgebruikt in e-mail/MIME
+        if re.search(r"=[0-9A-F]{2}", t) and t.count("=") > 5:
+            try:
+                import quopri
+                dec = quopri.decodestring(t[:100000].encode("latin-1")).decode("utf-8", "ignore")
+                if dec and re.search(r"https?://|@", dec):
+                    melding.append("quoted-printable-decode onthult inhoud")
+            except Exception:
+                pass
+        # ROT13
+        try:
+            rot = t[:5000].translate(str.maketrans(
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+                "NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"))
+            if re.search(r"https?://|powershell|cmd\.exe", rot, re.I) \
+                    and not re.search(r"https?://|powershell|cmd\.exe", t[:5000], re.I):
+                melding.append("ROT13 onthult verborgen payload")
+        except Exception:
+            pass
+        if melding:
+            self.vind("verborgen tekst-codering", bron, "; ".join(melding),
+                      "H", "AVG art. 12 lid 1 leesbare vorm", True)
+
+    # ── manipulatie-indicatoren (verdachte velden, hedging, IP/e-mail/secrets) ──
+    def _manipulatie(self, t, bron):
+        low = t.lower()
+        # verdachte sleutel-namen die op verborgen/verwijderde status wijzen
+        verdacht_keys = ["is_deleted", "is_hidden", '"hidden"', '"deleted"', "show_patient",
+                         '"override"', '"internal"', '"draft"', "confidential",
+                         "private_notes", "soft_delete", '"visible":false',
+                         '"visible": false', "suppressed", "redacted"]
+        gevonden = sorted({k.strip('"') for k in verdacht_keys if k in low})
+        if gevonden:
+            self.vind("verdachte status-/zichtbaarheidsvelden", bron,
+                      "Velden die inhoud als verborgen/verwijderd markeren: "
+                      + ", ".join(gevonden)
+                      + ". Data kan bestaan maar bewust onzichtbaar gemaakt zijn.",
+                      "H", "AVG art. 5(1)(d); art. 15; art. 12 lid 1", True)
+        # juridische hedging-taal (mitigerend, relativerend)
+        hedges = ["mogelijk", "zou kunnen passen bij", "schijnbaar", "niet uit te sluiten",
+                  "vermoedelijk", "waarschijnlijk", "lijkt op", "indicatief voor"]
+        h = [w for w in hedges if w in low]
+        if len(h) >= 2:
+            self.vind("linguïstische hedging", bron,
+                      f"{len(h)} relativerende termen: {h[:6]}. Medisch mitigerend "
+                      "taalgebruik dat stelligheid vermijdt.", "L", "WGBO 7:454", True)
+        # IP-adressen (netwerk-herkomst / relatie-mapping)
+        ips = sorted(set(re.findall(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}"
+                                    r"(?:25[0-5]|2[0-4]\d|1?\d?\d)\b", t)))
+        ips = [ip for ip in ips if not ip.startswith(("0.", "255.", "127."))][:20]
+        if ips:
+            self.vind("IP-adressen", bron,
+                      f"{len(ips)} uniek(e) IP-adres(sen): {ips[:10]}",
+                      "L", "AVG art. 5(1)(d) herkomst")
+        # e-mailadressen
+        mails = sorted(set(re.findall(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", t)))[:20]
+        if mails:
+            self.vind("e-mailadressen", bron, f"{len(mails)}: {mails[:10]}",
+                      "L", "AVG art. 5(1)(d)")
+        # generieke secrets/tokens
+        secrets = re.findall(r"(?:api[_-]?key|secret|token|bearer|authorization)"
+                             r"[\"'\s:=]+([A-Za-z0-9_\-\.]{16,})", t, re.I)
+        if secrets:
+            self.vind("mogelijke secrets/tokens", bron,
+                      f"{len(secrets)} credential-achtige waarde(n) aangetroffen "
+                      f"(eerste: {secrets[0][:12]}…).",
+                      "M", "AVG art. 32 beveiliging", True)
 
     def _blokken(self, raw, bron):
         gezien, n = set(), 0
@@ -565,6 +732,31 @@ class ForensicEngineV18:
                       f"{eofs}x %%EOF en {prev}x /Prev. Het bestand is na aanmaak bewerkt "
                       "en opnieuw opgeslagen; de vorige versie staat nog fysiek in het bestand.",
                       "H", "AVG art. 5(1)(d); art. 32; art. 225 Sr")
+        # amputatie: %PDF-start maar geen %%EOF in de staart (moedwillig afgekapt)
+        if b"%%EOF" not in raw[-1024:]:
+            self.vind("PDF-amputatie (ontbrekende %%EOF)", pad,
+                      "Het bestand begint met %PDF maar mist de %%EOF-terminator aan het "
+                      "einde: structureel onvolledig / afgekapt.",
+                      "H", "AVG art. 5(1)(d); art. 225 Sr", True)
+        # actieve/ingebedde inhoud (JavaScript, embedded files, auto-acties)
+        actief = []
+        for merk, uit in ((rb"/JavaScript", "JavaScript"), (rb"/JS\b", "JS-actie"),
+                          (rb"/EmbeddedFile", "ingebed bestand"),
+                          (rb"/OpenAction", "OpenAction (auto-uitvoer)"),
+                          (rb"/Launch", "Launch-actie"), (rb"/RichMedia", "RichMedia")):
+            if re.search(merk, raw):
+                actief.append(uit)
+        if actief:
+            self.vind("actieve/ingebedde PDF-inhoud", pad,
+                      "Aangetroffen: " + ", ".join(actief)
+                      + ". Een medisch document hoort geen uitvoerbare inhoud te bevatten.",
+                      "H", "AVG art. 32; NEN 7510", True)
+        # CID/CMap-glyphmapping (kan getoonde tekst laten afwijken van de tekstlaag)
+        if re.search(rb"/CIDToGIDMap|/Encoding\s*/Identity|beginbfchar|begincmap", raw):
+            self.vind("CID/CMap glyph-hercodering", pad,
+                      "Custom glyph-mapping aanwezig: de getoonde tekens kunnen afwijken "
+                      "van wat kopiëren/extractie oplevert (zichtbaar vs. opgeslagen).",
+                      "M", "AVG art. 5(1)(d); art. 12 lid 1", True)
         if not _HAS_FITZ:
             return
         try:
@@ -1286,6 +1478,8 @@ class ForensicEngineV18:
                 txt = raw.decode("utf-8", "replace")
                 self._ontdek(txt[:2_000_000], naam)
                 self._unicode(txt[:2_000_000], naam)
+                self._decodeer_tekst(txt[:2_000_000], naam)
+                self._manipulatie(txt[:2_000_000], naam)
                 self._medisch(txt[:2_000_000], naam)
                 self._cda(txt, naam)
                 self._fhir(txt, naam)
@@ -1344,6 +1538,8 @@ class ForensicEngineV18:
                     self._har(pad, raw)
                 self._ontdek(txt[:3_000_000], pad)          # ONTDEKKINGSLAAG eerst
                 self._unicode(txt[:3_000_000], pad)
+                self._decodeer_tekst(txt[:3_000_000], pad)
+                self._manipulatie(txt[:3_000_000], pad)
                 self._medisch(txt[:3_000_000], pad)
                 self._cda(txt, pad)
                 self._fhir(txt, pad)
@@ -1359,7 +1555,10 @@ class ForensicEngineV18:
                 if _plausibel(raw[:512]):
                     self._ontdek(txt[:2_000_000], pad)
                     self._unicode(txt[:2_000_000], pad)
+                    self._decodeer_tekst(txt[:2_000_000], pad)
+                    self._manipulatie(txt[:2_000_000], pad)
                     self._markers(txt[:2_000_000], pad)
+                    self._blokken(raw[:2_000_000], pad)
                 elif t not in ("jpg", "gif", "gz", "bz2"):
                     self.vind("onbekend/niet-geclassificeerd bestandstype", pad,
                               f"type '{t}' wordt niet inhoudelijk ontleed; alleen hash, "
