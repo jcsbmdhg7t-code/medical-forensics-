@@ -1012,8 +1012,8 @@ class ContentExtractor:
         try:
             text = data.decode('utf-8', errors='replace')
             # Strip HTML tags
-            plain = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL)
-            plain = re.sub(r'<style[^>]*>.*?</style>', '', plain, flags=re.DOTALL)
+            plain = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            plain = re.sub(r'<style[^>]*>.*?</style>', '', plain, flags=re.DOTALL | re.IGNORECASE)
             plain = re.sub(r'<[^>]+>', ' ', plain)
             plain = html_module.unescape(plain)
             plain = re.sub(r'\s+', ' ', plain).strip()
