@@ -61,15 +61,28 @@ var PATRONEN = [
     { p: /override\.css/i,                             nb: 'NB-89' },
     { p: /lucy\.css|lucy_colors/i,                     nb: 'NB-71' },
 
+    // ── Epic feature flags: uitgebreid ──
+    { p: /SEXUALACTIVITYHXQNR/i,                       nb: 'NB-83' },
+    { p: /AUTOSYNCRECEIVEFORPERSONALINFORMATION/i,     nb: 'NB-115' },
+    { p: /ExternalJump|LogExternalJumpAudit/i,         nb: 'NB-68' },
+
     // ── Trackers / telemetrie ──
     { p: /recording_capture_keystrokes\s*=\s*true/i,  nb: 'NB-53' },
     { p: /hotjar\.com|hjid\s*=/i,                      nb: 'NB-79' },
     { p: /sentry\.io/i,                                nb: 'NB-69' },
     { p: /DE36B70A/i,                                  nb: 'NB-69' },
     { p: /datadog.*browser-intake|browser-intake.*datadoghq/i, nb: 'NB-69' },
+    { p: /pendo\.io/i,                                 nb: 'NB-79' },
+    { p: /wingify|vwo\.com/i,                          nb: 'NB-79' },
+    { p: /qualtrics\.com/i,                            nb: 'NB-79' },
+    { p: /segment\.io|segment\.com/i,                  nb: 'NB-79' },
+    { p: /kameleoon/i,                                 nb: 'NB-79' },
+    { p: /GTM-PGPCH2T/i,                               nb: 'NB-85' },
     { p: /account_id\s*[:=]\s*763232/i,                nb: 'NB-178' },
     { p: /vwo_uuid/i,                                  nb: 'NB-178' },
+    { p: /hide_element.*opacity.*0|body.*opacity.*0.*important/i, nb: 'NB-178' },
     { p: /body\s*\{[^}]*opacity\s*:\s*0/i,             nb: 'NB-178' },
+    { p: /SESSION_ID\s*[=:]\s*[A-F0-9]{20,}/i,        nb: 'NB-79' },
 
     // ── Supply chain / externe partijen ──
     { p: /hoppinger\.com/i,                            nb: 'NB-114' },
@@ -271,23 +284,31 @@ function markeerBekend(body, url) {
     return hits;
 }
 
-// ── Stap 8: sla samenvatting op in $persistentStore (exporteerbaar via Data Persistence) ──
+// ── Stap 8: sla samenvatting op in $persistentStore — rollende chunks, niets gaat verloren ──
+// Chunks: forensisch_log_0, forensisch_log_1, forensisch_log_2 ...
+// forensisch_chunk = huidig chunknummer
+// Via Data Persistence → Export Data komen ALLE chunks mee.
 function slaOpInStore(url, status, bytes, nbHits, cookieProblemen) {
     try {
-        var bestaand = $persistentStore.read('forensisch_log') || '[]';
+        var chunk = parseInt($persistentStore.read('forensisch_chunk') || '0') || 0;
+        var key = 'forensisch_log_' + chunk;
+        var bestaand = $persistentStore.read(key) || '[]';
         var log;
         try { log = JSON.parse(bestaand); } catch(e) { log = []; }
-        var entry = {
+        log.push({
             t: new Date().toISOString().slice(0, 19).replace('T', ' '),
             u: url.split('?')[0].slice(0, 200),
             s: status,
             b: bytes,
             nb: nbHits && nbHits.length > 0 ? nbHits.join(',') : null,
             ck: cookieProblemen && cookieProblemen.length > 0 ? cookieProblemen.join(',') : null
-        };
-        log.push(entry);
-        if (log.length > 1000) log = log.slice(-1000);
-        $persistentStore.write(JSON.stringify(log), 'forensisch_log');
+        });
+        $persistentStore.write(JSON.stringify(log), key);
+        if (log.length >= 1000) {
+            var volgend = chunk + 1;
+            $persistentStore.write(String(volgend), 'forensisch_chunk');
+            console.log('[STORE] forensisch_log_' + chunk + ' vol (1000) → forensisch_log_' + volgend + ' gestart');
+        }
     } catch(e) {
         console.log('[STORE FOUT] ' + e);
     }
