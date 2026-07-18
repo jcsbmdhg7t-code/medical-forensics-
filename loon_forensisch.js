@@ -210,9 +210,9 @@ function logBase64(body, url) {
     }
 }
 
-// ── Stap 6: markeer bekende patronen (EXTRA, niet exclusief) ──
+// ── Stap 6: markeer bekende patronen (EXTRA, niet exclusief) — geeft hits[] terug ──
 function markeerBekend(body, url) {
-    if (!body || body.length < 2) return;
+    if (!body || body.length < 2) return [];
     var su = url.split('?')[0];
     var hits = [];
     for (var i = 0; i < PATRONEN.length; i++) {
@@ -228,6 +228,29 @@ function markeerBekend(body, url) {
     if (hits.length > 0) {
         melding('🔴 ' + hits.slice(0,3).join(' ') + ' TREFFER', su.slice(-50),
             hits.length + ' bekende patronen gevonden');
+    }
+    return hits;
+}
+
+// ── Stap 8: sla samenvatting op in $persistentStore (exporteerbaar via Data Persistence) ──
+function slaOpInStore(url, status, bytes, nbHits, cookieProblemen) {
+    try {
+        var bestaand = $persistentStore.read('forensisch_log') || '[]';
+        var log;
+        try { log = JSON.parse(bestaand); } catch(e) { log = []; }
+        var entry = {
+            t: new Date().toISOString().slice(0, 19).replace('T', ' '),
+            u: url.split('?')[0].slice(0, 200),
+            s: status,
+            b: bytes,
+            nb: nbHits && nbHits.length > 0 ? nbHits.join(',') : null,
+            ck: cookieProblemen && cookieProblemen.length > 0 ? cookieProblemen.join(',') : null
+        };
+        log.push(entry);
+        if (log.length > 1000) log = log.slice(-1000);
+        $persistentStore.write(JSON.stringify(log), 'forensisch_log');
+    } catch(e) {
+        console.log('[STORE FOUT] ' + e);
     }
 }
 
@@ -339,8 +362,22 @@ if (isResp) {
         if (reqBody.length > 0) logBase64(reqBody, url + ' [REQ]');
 
         // ── REGEL 12: bekende patronen markeren (extra bovenop alles) ──
-        markeerBekend(body, url);
-        if (reqBody.length > 0) markeerBekend(reqBody, url + ' [REQ]');
+        var nbHits = markeerBekend(body, url);
+        if (reqBody.length > 0) {
+            var nbHitsReq = markeerBekend(reqBody, url + ' [REQ]');
+            nbHits = nbHits.concat(nbHitsReq);
+        }
+
+        // ── REGEL 13: sla samenvatting op in persistent store ──
+        var setCk = respHeaders['set-cookie'] || respHeaders['Set-Cookie'];
+        var ckProblemen = [];
+        if (setCk) {
+            var ckStr = s(setCk);
+            if (ckStr.toLowerCase().indexOf('secure') === -1) ckProblemen.push('geen-Secure');
+            if (ckStr.toLowerCase().indexOf('httponly') === -1) ckProblemen.push('geen-HttpOnly');
+            if (ckStr.toLowerCase().indexOf('samesite') === -1) ckProblemen.push('geen-SameSite');
+        }
+        slaOpInStore(url, status, body.length, nbHits, ckProblemen);
 
         // ── Verwijder blokkerende headers ──
         for (var bi = 0; bi < BLOKKEER_HEADERS.length; bi++) {
