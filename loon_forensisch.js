@@ -131,7 +131,7 @@ function extracteerJSON(body, url) {
                 }
             } else {
                 var v = s(o);
-                if (v.length > 0 && v.length < 500) {
+                if (v.length > 0) {
                     waarden.push(pad + ' = ' + v);
                 }
             }
@@ -177,11 +177,13 @@ function extracteerXML(body, url) {
         }
     }
 
-    // Alle tekst tussen tags (leesbare inhoud)
+    // Alle tekst tussen tags (leesbare inhoud) — volledig
     var tekst = body.replace(/<[^>]+>/g, '\n').replace(/\s+/g, ' ').trim();
     if (tekst.length > 10) {
-        console.log('[XML-TEKST] Eerste 1000 tekens:');
-        console.log(tekst.slice(0, 1000));
+        console.log('[XML-TEKST] ' + tekst.length + ' tekens totaal:');
+        for (var xi = 0; xi < tekst.length; xi += 500) {
+            console.log(tekst.slice(xi, xi + 500));
+        }
     }
 }
 
@@ -189,14 +191,17 @@ function extracteerXML(body, url) {
 function logBase64(body, url) {
     var re = /[A-Za-z0-9+\/]{40,}={0,2}/g, m;
     var count = 0;
-    while ((m = re.exec(body)) !== null && count < 30) {
+    while ((m = re.exec(body)) !== null) {
         try {
             var d = atob(m[0]);
             var leesbaar = d.replace(/[^\x20-\x7E]/g, '·');
             var ratio = (leesbaar.split('·').length - 1) / d.length;
             if (ratio < 0.4) { // meer dan 60% leesbare ASCII
-                console.log('[BASE64-' + (count+1) + '] (offset ' + m.index + ') → ' + leesbaar.slice(0, 400));
                 count++;
+                console.log('[BASE64-' + count + '] offset ' + m.index + ', ' + leesbaar.length + ' tekens:');
+                for (var bi = 0; bi < leesbaar.length; bi += 500) {
+                    console.log(leesbaar.slice(bi, bi + 500));
+                }
             }
         } catch(e) {}
     }
@@ -290,25 +295,22 @@ if (isResp) {
             console.log('[SET-COOKIE] ' + s(setCookies));
         }
 
-        // ── REGEL 6: volledige body dump (eerste 3000 tekens) ──
+        // ── REGEL 6: volledige body dump — alles, geen limiet ──
         if (body.length > 0) {
-            console.log('[BODY BEGIN →]');
-            // Log in stukken van 500 tekens zodat Loon het niet afkapt
-            for (var i = 0; i < Math.min(body.length, 3000); i += 500) {
+            console.log('[BODY BEGIN →] ' + body.length + ' bytes totaal');
+            for (var i = 0; i < body.length; i += 500) {
                 console.log(body.slice(i, i + 500));
-            }
-            if (body.length > 3000) {
-                console.log('[... nog ' + (body.length - 3000) + ' bytes niet getoond ...]');
-                // Log ook het einde van de body
-                console.log('[BODY EINDE →]');
-                console.log(body.slice(-500));
             }
             console.log('[← BODY EINDE]');
         }
 
-        // ── REGEL 7: request body ook vastleggen ──
+        // ── REGEL 7: request body volledig vastleggen ──
         if (reqBody.length > 0) {
-            console.log('[REQ-BODY →] ' + reqBody.slice(0, 1000));
+            console.log('[REQ-BODY BEGIN →] ' + reqBody.length + ' bytes totaal');
+            for (var ri = 0; ri < reqBody.length; ri += 500) {
+                console.log(reqBody.slice(ri, ri + 500));
+            }
+            console.log('[← REQ-BODY EINDE]');
         }
 
         // ── REGEL 8: URL querystring apart ──
@@ -403,9 +405,13 @@ if (isResp) {
             }
         }
 
-        // Request body
+        // Request body volledig
         if (body.length > 0) {
-            console.log('[REQ-BODY →] ' + body.slice(0, 1500));
+            console.log('[REQ-BODY BEGIN →] ' + body.length + ' bytes totaal');
+            for (var rqi = 0; rqi < body.length; rqi += 500) {
+                console.log(body.slice(rqi, rqi + 500));
+            }
+            console.log('[← REQ-BODY EINDE]');
             extracteerJSON(body, url);
             extracteerXML(body, url);
             logBase64(body, url);
