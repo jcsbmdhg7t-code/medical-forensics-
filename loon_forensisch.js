@@ -1,115 +1,86 @@
 /**
- * FORENSISCH LOON SCRIPT
- * ======================
- * App: Loon (iOS) — gratis versie werkt, geen licentie nodig
+ * FORENSISCH LOON SCRIPT — alles vastleggen
  *
- * INSTALLATIE IN LOON:
- * 1. Open Loon → onderste balk → "Plug-in" tabblad
- * 2. Tik rechtsboven op + → "Script toevoegen"
- * 3. Plak dit hele bestand erin
- * 4. Script type: HTTP Request + Response
- * 5. URL-filter: *.spaarnegasthuis.nl, *.mijnspaarnegas*, *.medmij.nl
- *    (of gebruik * voor ALLES)
- * 6. Sla op
+ * Filosofie: dit script is een volledig net, geen filter.
+ * Elk request en response wordt volledig gelogd ongeacht inhoud.
+ * Bekende patronen krijgen extra markering, maar alles wat
+ * langskomt wordt zichtbaar — ook wat we nog niet kennen.
  *
- * OF via Configuratie (tekstbestand):
- *   [Script]
- *   http-request  *spaarnegasthuis*  script-path=loon_forensisch.js,timeout=60,tag=forensisch-req
- *   http-response *spaarnegasthuis*  script-path=loon_forensisch.js,requires-body=true,timeout=60,tag=forensisch-resp
+ * LOON INSTELLING:
+ *   Name: Forensisch
+ *   Script Type: http-response (hoofdscript)
+ *   Expressions: .*   (alles, of .*spaarnegasthuis.* voor alleen portaal)
+ *   Script Location: Local → plak dit script
+ *   Require Request Body: AAN
+ *   Timeout: 60
  *
- * LOGS BEKIJKEN:
- *   Loon → Hulpmiddelen (Tools) → Recente verzoeken → tik op verzoek → Script Log
- *
- * iOS MELDINGEN:
- *   Loon → Instellingen → Meldingen → aanzetten
- *   Bij elke KRITIEKE treffer verschijnt een iOS melding.
+ *   Tweede script (requests):
+ *   Script Type: http-request
+ *   Require Request Body: UIT
  */
 
 (function () {
 
+// ── Bekende patronen — alleen voor EXTRA markering bovenop alles ──
 var PATRONEN = [
-    { p: /F19\.1/i,                          l: 'F19.1 psychoactieve stof',             nb: 'NB-01', e: 'KRITIEK' },
-    { p: /neusdruppelmisbruik/i,             l: 'Term neusdruppelmisbruik',             nb: 'NB-01', e: 'KRITIEK' },
-    { p: /361055000/,                        l: 'SNOMED 361055000 alcoholmisbruik',     nb: 'NB-03', e: 'KRITIEK' },
-    { p: /228273003/,                        l: 'SNOMED 228273003 drugsgebruik',        nb: 'NB-23', e: 'KRITIEK' },
-    { p: /228366006/,                        l: 'SNOMED 228366006 stimulant misuse',    nb: 'NB-23b',e: 'KRITIEK' },
-    { p: /266927001/,                        l: 'SNOMED 266927001 afhankelijkheid',     nb: 'NB-23c',e: 'KRITIEK' },
-    { p: /F60\.31/i,                         l: 'F60.31 borderline',                    nb: 'NB-xx', e: 'KRITIEK' },
-    { p: /20260110033455/,                   l: 'NACHT-TIMESTAMP 10-01-2026 03:34:55',  nb: 'NB-166',e: 'KRITIEK' },
-    { p: /nullFlavor\s*=\s*["']?UNK/i,      l: 'CDA nullFlavor=UNK anonieme auteur',   nb: 'NB-18', e: 'KRITIEK' },
-    { p: /extension\s*=\s*["']?999999/i,    l: 'Epic extension=999999 anoniem',        nb: 'NB-18', e: 'KRITIEK' },
-    { p: /extension\s*=\s*["']?51504662/i,  l: 'N.M. Nota extensie code A',            nb: 'NB-04', e: 'KRITIEK' },
-    { p: /extension\s*=\s*["']?84107660/i,  l: 'N.M. Nota extensie code B',            nb: 'NB-04', e: 'KRITIEK' },
-    { p: /extension\s*=\s*["']?373282512/i, l: 'A. al-Mousawi extensie code',          nb: 'NB-05', e: 'KRITIEK' },
-    { p: /Epic@spaarnegasthuis\.nl/i,       l: 'Epic admin e-mail',                    nb: 'NB-05', e: 'KRITIEK' },
-    { p: /DISABLEMYCONDITIONS/i,            l: 'Flag DISABLEMYCONDITIONS',             nb: 'NB-11', e: 'KRITIEK' },
-    { p: /DISABLEPLANOFCARE/i,              l: 'Flag DISABLEPLANOFCARE',               nb: 'NB-11', e: 'KRITIEK' },
-    { p: /SUBSTANCEHXQNR/i,                 l: 'SUBSTANCEHXQNR verslavingsmodule',     nb: 'NB-108',e: 'KRITIEK' },
-    { p: /AUTOGENERATESIGNATURE/i,          l: 'AUTOGENERATESIGNATURE',                nb: 'NB-82', e: 'KRITIEK' },
-    { p: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i,l:'Audit trail feature flag',             nb: 'NB-163',e: 'KRITIEK' },
-    { p: /noView\s*:\s*true/i,              l: 'noView:true data verborgen',            nb: 'NB-99', e: 'KRITIEK' },
-    { p: /HANDMATIGE_EDIT_BOM/i,            l: 'Bytemanipulatie vlag',                 nb: 'NB-13', e: 'KRITIEK' },
-    { p: /hiddenProvider/i,                 l: 'CSS klasse hiddenProvider',             nb: 'NB-12', e: 'KRITIEK' },
-    { p: /CEDataExternal/i,                 l: 'CSS klasse CEDataExternal',            nb: 'NB-12', e: 'KRITIEK' },
-    { p: /override\.css/i,                  l: 'override.css referentie',              nb: 'NB-89', e: 'KRITIEK' },
-    { p: /lucy\.css|lucy_colors/i,          l: 'lucy.css renderingslaag',              nb: 'NB-71', e: 'KRITIEK' },
-    { p: /recording_capture_keystrokes\s*=\s*true/i, l:'Hotjar keystroke capture ACTIEF', nb:'NB-53',e:'KRITIEK' },
-    { p: /hjid\s*=|hotjar\.com/i,           l: 'Hotjar tracker',                       nb: 'NB-79', e: 'KRITIEK' },
-    { p: /account_id\s*[:=]\s*763232/i,     l: 'VWO account_id=763232',               nb: 'NB-178',e: 'KRITIEK' },
-    { p: /vwo_uuid/i,                       l: 'VWO UUID tracking',                    nb: 'NB-178',e: 'KRITIEK' },
-    { p: /body\s*\{[^}]*opacity\s*:\s*0/i,  l: 'VWO body opacity:0 aanval',           nb: 'NB-178',e: 'KRITIEK' },
-    { p: /ChipSoft\.PlatformServices/i,     l: 'ChipSoft HiX API blootgesteld',        nb: 'NB-177',e: 'KRITIEK' },
-    { p: /GetCurrentPatientAndUserObject/i, l: 'ChipSoft patientobject gelekt',        nb: 'NB-177',e: 'KRITIEK' },
-    { p: /2001702222/,                       l: 'ChipSoft patient-ID Grothe',           nb: 'NB-177',e: 'KRITIEK' },
-    { p: /215672185/,                        l: 'BSN Grothe in response',               nb: 'NB-166',e: 'KRITIEK' },
-    { p: /0133033170/,                       l: 'MDN Grothe in response',               nb: 'NB-166',e: 'KRITIEK' },
-    { p: /Brijder|Parnassia.*Indigo/i,      l: 'Parnassia/Brijder — nooit in beh.',   nb: 'NB-113',e: 'KRITIEK' },
-    { p: /spaarne-rebuild\.productie\.hoppinger/i, l:'Hoppinger productie-injectie',   nb: 'NB-114',e: 'KRITIEK' },
-    { p: /FocusZorgTeam.*test\.authorization/i, l:'FocusZorgTeam test in productie',   nb: 'NB-91', e: 'KRITIEK' },
-    { p: /transactie.{0,10}77832/i,         l: 'Transactie-ID 77832 SNOMED SUCCESS',   nb: 'NB-23', e: 'KRITIEK' },
-    { p: /sentry\.io/i,                     l: 'Sentry.io telemetrie',                 nb: 'NB-69', e: 'HOOG' },
-    { p: /DE36B70A/i,                        l: 'Sentry device ID DE36B70A',            nb: 'NB-69', e: 'HOOG' },
-    { p: /hoppinger\.com/i,                 l: 'Hoppinger supply chain',               nb: 'NB-114',e: 'HOOG' },
-    { p: /datadog.*browser-intake/i,        l: 'Datadog RUM telemetrie',               nb: 'NB-69', e: 'HOOG' },
-    { p: /WoundListSection/i,               l: 'CSS WoundListSection',                 nb: 'NB-12', e: 'HOOG' },
-    { p: /printBlackText/i,                 l: 'printBlackText alarmkleur',            nb: 'NB-84', e: 'HOOG' },
-    { p: /DYN_CURRENT_USER/i,              l: 'ChipSoft HiX sessietoken',             nb: 'NB-177',e: 'HOOG' },
-    { p: /GetPatientDocuments/i,            l: 'ChipSoft GetPatientDocuments',         nb: 'NB-177',e: 'HOOG' },
-    { p: /GetDcrRegistrations/i,            l: 'ChipSoft GetDcrRegistrations',         nb: 'NB-177',e: 'HOOG' },
-    { p: /centramed\.nl/i,                  l: 'Centramed aansprakelijkheidsverz.',    nb: 'NB-179',e: 'HOOG' },
-    { p: /quliRedirect/i,                   l: 'MedMij quliRedirect cookie',           nb: 'MEDMIJ',e: 'HOOG' },
-    { p: /mfn=/i,                            l: 'MedMij provider token mfn=',           nb: 'MEDMIJ',e: 'HOOG' },
-    { p: /\$lastn/i,                         l: 'FHIR $lastn replay',                   nb: 'NB-109',e: 'HOOG' },
+    { p: /F19\.1/i,                          nb: 'NB-01' },
+    { p: /neusdruppelmisbruik/i,             nb: 'NB-01' },
+    { p: /361055000/,                        nb: 'NB-03' },
+    { p: /228273003/,                        nb: 'NB-23' },
+    { p: /228366006/,                        nb: 'NB-23b' },
+    { p: /266927001/,                        nb: 'NB-23c' },
+    { p: /F60\.31/i,                         nb: 'NB-xx' },
+    { p: /20260110033455/,                   nb: 'NB-166' },
+    { p: /nullFlavor\s*=\s*["']?UNK/i,      nb: 'NB-18' },
+    { p: /extension\s*=\s*["']?999999/i,    nb: 'NB-18' },
+    { p: /extension\s*=\s*["']?51504662/i,  nb: 'NB-04' },
+    { p: /extension\s*=\s*["']?84107660/i,  nb: 'NB-04' },
+    { p: /extension\s*=\s*["']?373282512/i, nb: 'NB-05' },
+    { p: /Epic@spaarnegasthuis\.nl/i,       nb: 'NB-05' },
+    { p: /DISABLEMYCONDITIONS/i,            nb: 'NB-11' },
+    { p: /DISABLEPLANOFCARE/i,              nb: 'NB-11' },
+    { p: /SUBSTANCEHXQNR/i,                nb: 'NB-108' },
+    { p: /AUTOGENERATESIGNATURE/i,          nb: 'NB-82' },
+    { p: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i, nb: 'NB-163' },
+    { p: /noView\s*:\s*true/i,              nb: 'NB-99' },
+    { p: /hiddenProvider/i,                 nb: 'NB-12' },
+    { p: /CEDataExternal/i,                 nb: 'NB-12' },
+    { p: /override\.css/i,                  nb: 'NB-89' },
+    { p: /lucy\.css/i,                      nb: 'NB-71' },
+    { p: /recording_capture_keystrokes\s*=\s*true/i, nb: 'NB-53' },
+    { p: /hotjar\.com|hjid\s*=/i,           nb: 'NB-79' },
+    { p: /account_id\s*[:=]\s*763232/i,     nb: 'NB-178' },
+    { p: /vwo_uuid/i,                        nb: 'NB-178' },
+    { p: /ChipSoft\.PlatformServices/i,     nb: 'NB-177' },
+    { p: /GetCurrentPatientAndUserObject/i, nb: 'NB-177' },
+    { p: /2001702222/,                       nb: 'NB-177' },
+    { p: /215672185/,                        nb: 'NB-166' },
+    { p: /0133033170/,                       nb: 'NB-166' },
+    { p: /Brijder|Parnassia.*Indigo/i,      nb: 'NB-113' },
+    { p: /FocusZorgTeam.*test/i,            nb: 'NB-91' },
+    { p: /spaarne-rebuild.*hoppinger/i,     nb: 'NB-114' },
+    { p: /transactie.{0,10}77832/i,         nb: 'NB-23' },
+    { p: /centramed\.nl/i,                  nb: 'NB-179' },
+    { p: /quliRedirect/i,                    nb: 'MEDMIJ' },
 ];
 
 var BLOKKEER_HEADERS = [
-    'content-security-policy',
-    'content-security-policy-report-only',
-    'x-frame-options',
-    'x-xss-protection',
-    'x-content-type-options',
-    'strict-transport-security',
-    'feature-policy',
-    'permissions-policy',
-    'cross-origin-embedder-policy',
-    'cross-origin-opener-policy',
+    'content-security-policy', 'content-security-policy-report-only',
+    'x-frame-options', 'x-xss-protection', 'x-content-type-options',
+    'strict-transport-security', 'feature-policy', 'permissions-policy',
+    'cross-origin-embedder-policy', 'cross-origin-opener-policy',
     'cross-origin-resource-policy',
-];
-
-var AUDIT_ENDPOINTS = [
-    'GetClinicianAccessLogSettings', 'GetClinicianAccessLogEntries',
-    'GetThirdPartyAccessLogEntries', 'access-logs', 'AccessLog', 'AuditTrail',
 ];
 
 // ── hulpfuncties ──
 
-function str(b) { return b ? String(b) : ''; }
+function s(v) { return v ? String(v) : ''; }
 
 function hGet(h, n) {
     if (!h) return '';
     var lo = n.toLowerCase(), k = Object.keys(h);
     for (var i = 0; i < k.length; i++)
-        if (k[i].toLowerCase() === lo) return str(h[k[i]]);
+        if (k[i].toLowerCase() === lo) return s(h[k[i]]);
     return '';
 }
 
@@ -120,196 +91,331 @@ function hDel(h, n) {
         if (k[i].toLowerCase() === lo) { delete h[k[i]]; return; }
 }
 
-function isAudit(url) {
-    return AUDIT_ENDPOINTS.some(function(e) { return url.indexOf(e) !== -1; });
+function melding(titel, sub, body) {
+    try { $notification.post(titel, sub, body); } catch(e) {}
 }
 
-function melding(titel, ondertitel, tekst) {
-    try { $notification.post(titel, ondertitel, tekst); } catch(e) {}
+// ── Stap 1: log ALLE headers volledig ──
+function logAlleHeaders(headers, richting) {
+    if (!headers) return;
+    var k = Object.keys(headers);
+    console.log('[HEADERS ' + richting + '] ' + k.length + ' stuks:');
+    for (var i = 0; i < k.length; i++) {
+        console.log('  ' + k[i] + ': ' + s(headers[k[i]]).slice(0, 300));
+    }
 }
 
-function scan(body, url, ctx) {
-    if (!body || body.length < 2) return;
-    var su = url.split('?')[0];
-    var kritiek = [];
-    for (var i = 0; i < PATRONEN.length; i++) {
-        var re = new RegExp(PATRONEN[i].p.source, 'gi');
-        var m;
-        while ((m = re.exec(body)) !== null) {
-            var idx  = m.index;
-            var frag = body.substring(Math.max(0, idx - 60), idx + 100).replace(/[\n\r\t]+/g, ' ').trim();
-            var regel = '[' + PATRONEN[i].e + '] ' + PATRONEN[i].nb + ' ' + PATRONEN[i].l;
-            console.log('[F][' + ctx + '] ' + regel + ' | ' + su);
-            console.log('    → ...' + frag + '...');
-            if (PATRONEN[i].e === 'KRITIEK') kritiek.push(PATRONEN[i].nb + ' ' + PATRONEN[i].l);
-            if (re.lastIndex === idx) re.lastIndex++;
+// ── Stap 2: log ALLE cookies volledig ──
+function logAlleCookies(cookieStr, richting) {
+    if (!cookieStr) return;
+    var cookies = cookieStr.split(';');
+    console.log('[COOKIES ' + richting + '] ' + cookies.length + ' cookies:');
+    for (var i = 0; i < cookies.length; i++) {
+        var c = cookies[i].trim();
+        if (c) console.log('  ' + c);
+    }
+}
+
+// ── Stap 3: extraheer ALLE waarden uit JSON — geen filter ──
+function extracteerJSON(body, url) {
+    if (!body || body.indexOf('{') === -1) return;
+    try {
+        var obj = JSON.parse(body);
+        var waarden = [];
+        function loop(o, pad) {
+            if (o === null || o === undefined) return;
+            if (typeof o === 'object') {
+                var k = Object.keys(o);
+                for (var i = 0; i < k.length; i++) {
+                    loop(o[k[i]], pad ? pad + '.' + k[i] : k[i]);
+                }
+            } else {
+                var v = s(o);
+                if (v.length > 0 && v.length < 500) {
+                    waarden.push(pad + ' = ' + v);
+                }
+            }
+        }
+        loop(obj, '');
+        console.log('[JSON] ' + waarden.length + ' velden in ' + url.split('?')[0]);
+        // Log alles in blokken van 20
+        for (var i = 0; i < waarden.length; i += 20) {
+            console.log(waarden.slice(i, i + 20).join('\n'));
+        }
+    } catch(e) {
+        // Geen valide JSON — probeer JSON-fragmenten te vinden
+        var re = /"([^"]{1,60})"\s*:\s*"([^"]{1,200})"/g, m;
+        var gevonden = [];
+        while ((m = re.exec(body)) !== null && gevonden.length < 100) {
+            gevonden.push('"' + m[1] + '": "' + m[2] + '"');
+        }
+        if (gevonden.length > 0) {
+            console.log('[JSON-FRAGMENT] ' + gevonden.length + ' sleutel-waarde paren:');
+            console.log(gevonden.join('\n'));
         }
     }
-    if (kritiek.length > 0) {
-        melding('🔴 FORENSISCH TREFFER', su.slice(-60), kritiek.slice(0, 3).join(' | '));
+}
+
+// ── Stap 4: extraheer ALLE XML attributen en tekst ──
+function extracteerXML(body, url) {
+    if (!body || (body.indexOf('<') === -1 && body.indexOf('<?xml') === -1)) return;
+
+    // Alle attribuut=waarde combinaties
+    var attrs = [];
+    var re = /(\w[\w:.-]*)\s*=\s*["']([^"']{1,300})["']/g, m;
+    while ((m = re.exec(body)) !== null && attrs.length < 200) {
+        var naam = m[1].toLowerCase();
+        // Sla pure stijl/class attributen over
+        if (naam !== 'style' && naam !== 'class' && naam !== 'id' && naam !== 'href') {
+            attrs.push(m[1] + '="' + m[2] + '"');
+        }
+    }
+    if (attrs.length > 0) {
+        console.log('[XML-ATTRS] ' + attrs.length + ' attributen in ' + url.split('?')[0]);
+        for (var i = 0; i < attrs.length; i += 30) {
+            console.log(attrs.slice(i, i + 30).join('\n'));
+        }
+    }
+
+    // Alle tekst tussen tags (leesbare inhoud)
+    var tekst = body.replace(/<[^>]+>/g, '\n').replace(/\s+/g, ' ').trim();
+    if (tekst.length > 10) {
+        console.log('[XML-TEKST] Eerste 1000 tekens:');
+        console.log(tekst.slice(0, 1000));
     }
 }
 
-function b64scan(body, url) {
+// ── Stap 5: decodeer en log ALLE base64 blokken ──
+function logBase64(body, url) {
     var re = /[A-Za-z0-9+\/]{40,}={0,2}/g, m;
     var count = 0;
-    while ((m = re.exec(body)) !== null && count < 20) {
+    while ((m = re.exec(body)) !== null && count < 30) {
         try {
             var d = atob(m[0]);
-            if (/[\x20-\x7E]{10,}/.test(d)) {
-                scan(d, url, 'BASE64');
+            var leesbaar = d.replace(/[^\x20-\x7E]/g, '·');
+            var ratio = (leesbaar.split('·').length - 1) / d.length;
+            if (ratio < 0.4) { // meer dan 60% leesbare ASCII
+                console.log('[BASE64-' + (count+1) + '] (offset ' + m.index + ') → ' + leesbaar.slice(0, 400));
                 count++;
             }
         } catch(e) {}
     }
-}
-
-function stripVerberging(body) {
-    var v = [
-        [/(\{[^}]*)\bdisplay\s*:\s*none(\s*!important)?([^}]*\})/gi, '$1display:block$3'],
-        [/\bvisibility\s*:\s*hidden(\s*!important)?/gi, 'visibility:visible'],
-        [/\bopacity\s*:\s*0(\s*!important)?/gi, 'opacity:1'],
-        [/\bfont-size\s*:\s*0(px|em|rem)?(\s*!important)?/gi, 'font-size:inherit'],
-        [/\bheight\s*:\s*0(px)?(\s*!important)?/gi, 'height:auto'],
-        [/\bmax-height\s*:\s*0(px)?(\s*!important)?/gi, 'max-height:none'],
-        [/\bclip\s*:\s*rect\s*\([^)]*\)/gi, 'clip:auto'],
-        [/\b(left|top)\s*:\s*-\d{3,}(px|em)(\s*!important)?/gi, '$1:auto'],
-        [/(<[^>]+)\bstyle\s*=\s*"([^"]*display\s*:\s*none[^"]*)"/gi,
-            function(_,tag,sty){ return tag+' style="'+sty.replace(/display\s*:\s*none/,'display:block')+'" data-fo="1"'; }],
-        [/\bhidden\b(?=\s*[>\/\s])/gi, 'data-was-hidden'],
-    ];
-    var n = 0;
-    for (var i = 0; i < v.length; i++) {
-        var nieuw = body.replace(v[i][0], v[i][1]);
-        if (nieuw !== body) { n++; body = nieuw; }
+    if (count > 0) {
+        console.log('[BASE64] ' + count + ' blokken gedecodeerd in ' + url.split('?')[0]);
     }
-    return { body: body, n: n };
 }
 
-// ── context detectie ──
+// ── Stap 6: markeer bekende patronen (EXTRA, niet exclusief) ──
+function markeerBekend(body, url) {
+    if (!body || body.length < 2) return;
+    var su = url.split('?')[0];
+    var hits = [];
+    for (var i = 0; i < PATRONEN.length; i++) {
+        var re = new RegExp(PATRONEN[i].p.source, 'gi'), m;
+        while ((m = re.exec(body)) !== null) {
+            var idx  = m.index;
+            var frag = body.substring(Math.max(0, idx - 80), idx + 150).replace(/[\n\r\t]+/g, ' ');
+            console.log('[!!! ' + PATRONEN[i].nb + ' !!!] TREFFER: ...' + frag + '...');
+            hits.push(PATRONEN[i].nb);
+            if (re.lastIndex === idx) re.lastIndex++;
+        }
+    }
+    if (hits.length > 0) {
+        melding('🔴 ' + hits.slice(0,3).join(' ') + ' TREFFER', su.slice(-50),
+            hits.length + ' bekende patronen gevonden');
+    }
+}
+
+// ── Stap 7: verwijder CSS verberging uit HTML/CSS ──
+function stripVerberging(body) {
+    var was = body.length;
+    body = body.replace(/(\{[^}]*)\bdisplay\s*:\s*none(\s*!important)?([^}]*\})/gi, '$1display:block$3');
+    body = body.replace(/\bvisibility\s*:\s*hidden(\s*!important)?/gi, 'visibility:visible');
+    body = body.replace(/\bopacity\s*:\s*0(\s*!important)?/gi, 'opacity:1');
+    body = body.replace(/\bfont-size\s*:\s*0(px|em|rem)?(\s*!important)?/gi, 'font-size:inherit');
+    body = body.replace(/\bheight\s*:\s*0(px)?(\s*!important)?/gi, 'height:auto');
+    body = body.replace(/\bmax-height\s*:\s*0(px)?(\s*!important)?/gi, 'max-height:none');
+    body = body.replace(/\bclip\s*:\s*rect\s*\([^)]*\)/gi, 'clip:auto');
+    body = body.replace(/\b(left|top)\s*:\s*-\d{3,}(px|em)(\s*!important)?/gi, '$1:auto');
+    body = body.replace(/(<[^>]+style\s*=\s*"[^"]*)\bdisplay\s*:\s*none([^"]*")/gi, '$1display:block$2');
+    body = body.replace(/\bhidden(?=\s*[>\/\s])/gi, 'data-was-hidden');
+    if (body.length !== was) {
+        console.log('[VERBERGING] CSS verberging verwijderd (' + (body.length - was) + ' bytes gewijzigd)');
+    }
+    return body;
+}
+
+// ── context ──
 
 var isResp = false, isReq = false;
 try { isResp = typeof $response !== 'undefined' && $response !== null; } catch(e) {}
 try { isReq  = !isResp && typeof $request !== 'undefined' && $request !== null; } catch(e) {}
 
 // ════════════════════════════════════════════════════════════
-//  RESPONSE
+//  RESPONSE — volledig vastleggen
 // ════════════════════════════════════════════════════════════
 if (isResp) {
-    var url = '', method = '', status = 0, headers = {}, body = '';
-    try { url    = $request.url || ''; }     catch(e) {}
-    try { method = $request.method || ''; }  catch(e) {}
-    try { status = $response.status || 0; }  catch(e) {}
-    try { headers = $response.headers ? JSON.parse(JSON.stringify($response.headers)) : {}; } catch(e) { headers = {}; }
-    try { body   = str($response.body); }    catch(e) {}
+
+    var url = '', method = '', status = 0, reqHeaders = {}, respHeaders = {}, body = '', reqBody = '';
+    try { url         = $request.url || ''; }         catch(e) {}
+    try { method      = $request.method || ''; }       catch(e) {}
+    try { status      = $response.status || 0; }       catch(e) {}
+    try { reqHeaders  = $request.headers || {}; }      catch(e) {}
+    try { respHeaders = $response.headers
+            ? JSON.parse(JSON.stringify($response.headers)) : {}; } catch(e) { respHeaders = {}; }
+    try { body        = s($response.body); }            catch(e) {}
+    try { reqBody     = s($request.body); }             catch(e) {}
 
     var su = url.split('?')[0];
-    var origBody = body, origHeaders = JSON.parse(JSON.stringify(headers));
+    var origBody = body, origHeaders = JSON.parse(JSON.stringify(respHeaders));
 
     try {
-        console.log('[F] <<< RESPONSE ' + method + ' ' + status + ' ' + su + ' (' + body.length + 'b)');
+        // ── REGEL 1: log alles — url, status, grootte ──
+        console.log('═══════════════════════════════════════');
+        console.log('[RESPONSE] ' + method + ' ' + status + ' ' + url);
+        console.log('[GROOTTE] body: ' + body.length + 'b | reqbody: ' + reqBody.length + 'b');
 
-        // Audit trail
-        if (isAudit(url)) {
-            if (status === 401 || status === 403 || status === 0) {
-                console.log('[KRITIEK] Audit trail GEBLOKKEERD HTTP ' + status);
-                melding('🔴 AUDIT TRAIL GEBLOKKEERD', 'HTTP ' + status, su);
-            } else {
-                console.log('[INFO] Audit trail bereikbaar HTTP ' + status + ' | ' + su);
+        // ── REGEL 2: alle response headers ──
+        logAlleHeaders(respHeaders, 'RESP');
+
+        // ── REGEL 3: alle request headers (ook vastleggen) ──
+        logAlleHeaders(reqHeaders, 'REQ');
+
+        // ── REGEL 4: alle cookies in request ──
+        logAlleCookies(hGet(reqHeaders, 'cookie'), 'REQ');
+
+        // ── REGEL 5: alle Set-Cookie headers volledig ──
+        var setCookies = respHeaders['set-cookie'] || respHeaders['Set-Cookie'];
+        if (setCookies) {
+            console.log('[SET-COOKIE] ' + s(setCookies));
+        }
+
+        // ── REGEL 6: volledige body dump (eerste 3000 tekens) ──
+        if (body.length > 0) {
+            console.log('[BODY BEGIN →]');
+            // Log in stukken van 500 tekens zodat Loon het niet afkapt
+            for (var i = 0; i < Math.min(body.length, 3000); i += 500) {
+                console.log(body.slice(i, i + 500));
+            }
+            if (body.length > 3000) {
+                console.log('[... nog ' + (body.length - 3000) + ' bytes niet getoond ...]');
+                // Log ook het einde van de body
+                console.log('[BODY EINDE →]');
+                console.log(body.slice(-500));
+            }
+            console.log('[← BODY EINDE]');
+        }
+
+        // ── REGEL 7: request body ook vastleggen ──
+        if (reqBody.length > 0) {
+            console.log('[REQ-BODY →] ' + reqBody.slice(0, 1000));
+        }
+
+        // ── REGEL 8: URL querystring apart ──
+        if (url.indexOf('?') !== -1) {
+            var qs = url.slice(url.indexOf('?') + 1);
+            var params = qs.split('&');
+            console.log('[URL-PARAMS] ' + params.length + ' parameters:');
+            for (var pi = 0; pi < params.length; pi++) {
+                console.log('  ' + decodeURIComponent(params[pi].replace(/\+/g, ' ')));
             }
         }
 
-        // Verwijder ALLE blokkerende headers
+        // ── REGEL 9: JSON volledig uitpakken ──
+        var ct = hGet(respHeaders, 'content-type').toLowerCase();
+        if (ct.indexOf('json') !== -1 || body.trimLeft().charAt(0) === '{' || body.trimLeft().charAt(0) === '[') {
+            extracteerJSON(body, url);
+        }
+
+        // ── REGEL 10: XML volledig uitpakken ──
+        if (ct.indexOf('xml') !== -1 || body.indexOf('<?xml') !== -1 || body.indexOf('<ClinicalDocument') !== -1) {
+            extracteerXML(body, url);
+        }
+
+        // ── REGEL 11: base64 decoderen en loggen ──
+        logBase64(body, url);
+        if (reqBody.length > 0) logBase64(reqBody, url + ' [REQ]');
+
+        // ── REGEL 12: bekende patronen markeren (extra bovenop alles) ──
+        markeerBekend(body, url);
+        if (reqBody.length > 0) markeerBekend(reqBody, url + ' [REQ]');
+
+        // ── Verwijder blokkerende headers ──
         for (var bi = 0; bi < BLOKKEER_HEADERS.length; bi++) {
-            var bv = hGet(headers, BLOKKEER_HEADERS[bi]);
-            if (bv) {
-                console.log('[INFO] Header verwijderd: ' + BLOKKEER_HEADERS[bi]);
-                hDel(headers, BLOKKEER_HEADERS[bi]);
+            if (hGet(respHeaders, BLOKKEER_HEADERS[bi])) {
+                console.log('[HEADER-DEL] ' + BLOKKEER_HEADERS[bi]);
+                hDel(respHeaders, BLOKKEER_HEADERS[bi]);
             }
         }
 
-        // Open CORS volledig
-        headers['Access-Control-Allow-Origin']   = '*';
-        headers['Access-Control-Allow-Methods']  = 'GET, POST, OPTIONS, PUT, DELETE, PATCH';
-        headers['Access-Control-Allow-Headers']  = '*';
-        headers['Access-Control-Expose-Headers'] = '*';
+        // ── CORS volledig open ──
+        respHeaders['Access-Control-Allow-Origin']   = '*';
+        respHeaders['Access-Control-Allow-Methods']  = 'GET, POST, OPTIONS, PUT, DELETE, PATCH';
+        respHeaders['Access-Control-Allow-Headers']  = '*';
+        respHeaders['Access-Control-Expose-Headers'] = '*';
 
-        // HTTP 204 op API
-        if (status === 204) {
-            console.log('[HOOG] HTTP 204 lege response — mogelijke data-filtering: ' + su);
-        }
+        // ── CSS verberging verwijderen ──
+        body = stripVerberging(body);
 
-        // Scan body
-        scan(body, url, 'RESP');
-        b64scan(body, url);
-
-        // CSS verberging strippen
-        var ct = hGet(headers, 'content-type').toLowerCase();
-        if (ct.indexOf('text/html') !== -1 || ct.indexOf('text/css') !== -1 ||
-            body.indexOf('display') !== -1 || body.indexOf('hidden') !== -1) {
-            var res = stripVerberging(body);
-            if (res.n > 0) {
-                console.log('[KRITIEK] CSS verberging verwijderd: ' + res.n + ' aanpassingen | ' + su);
-                body = res.body;
-            }
-        }
-
-        $done({ status: status, headers: headers, body: body });
+        $done({ status: status, headers: respHeaders, body: body });
 
     } catch(e) {
-        console.log('[F] FOUT response: ' + e);
+        console.log('[FOUT] response: ' + e);
         try { $done({ status: status, headers: origHeaders, body: origBody }); }
         catch(e2) { try { $done({}); } catch(e3) {} }
     }
 
 // ════════════════════════════════════════════════════════════
-//  REQUEST
+//  REQUEST — volledig vastleggen
 // ════════════════════════════════════════════════════════════
 } else if (isReq) {
+
     var url = '', method = '', headers = {}, body = '';
     try { url     = $request.url || ''; }    catch(e) {}
     try { method  = $request.method || ''; } catch(e) {}
     try { headers = $request.headers || {}; } catch(e) {}
-    try { body    = str($request.body); }    catch(e) {}
+    try { body    = s($request.body); }       catch(e) {}
 
     var su = url.split('?')[0];
 
     try {
-        console.log('[F] >>> REQUEST ' + method + ' ' + su);
+        console.log('───────────────────────────────────────');
+        console.log('[REQUEST] ' + method + ' ' + url);
 
-        if (isAudit(url)) {
-            console.log('[HOOG] Audit trail request ' + method + ' | ' + su);
-            melding('🔍 Audit trail request', method, su.slice(-60));
-        }
+        // Alle headers
+        logAlleHeaders(headers, 'REQ');
 
-        // PII in URL
-        if (url.indexOf('215672185') !== -1) { console.log('[KRITIEK] BSN in URL!'); melding('🔴 BSN in URL', su, '215672185'); }
-        if (url.indexOf('0133033170') !== -1){ console.log('[KRITIEK] MDN in URL!'); melding('🔴 MDN in URL', su, '0133033170'); }
-        if (url.indexOf('2001702222') !== -1){ console.log('[KRITIEK] ChipSoft-ID in URL!'); }
+        // Alle cookies
+        logAlleCookies(hGet(headers, 'cookie'), 'REQ');
 
-        // Auth header
+        // Auth tokens
         var auth = hGet(headers, 'authorization');
-        if (auth) console.log('[INFO] Authorization: ' + auth.slice(0, 60));
+        if (auth) console.log('[AUTH] ' + auth.slice(0, 200));
 
-        // Cookies
-        var ck = hGet(headers, 'cookie');
-        if (ck) {
-            if (ck.indexOf('quliRedirect') !== -1) console.log('[HOOG] MedMij quliRedirect cookie aanwezig');
-            if (ck.indexOf('JSESSIONID') !== -1) console.log('[INFO] JSESSIONID sessiecookie aanwezig');
-            console.log('[INFO] Cookies: ' + ck.slice(0, 200));
+        // URL params
+        if (url.indexOf('?') !== -1) {
+            var qs = url.slice(url.indexOf('?') + 1);
+            var params = qs.split('&');
+            console.log('[URL-PARAMS] ' + params.length + ':');
+            for (var pi = 0; pi < params.length; pi++) {
+                try { console.log('  ' + decodeURIComponent(params[pi].replace(/\+/g, ' '))); }
+                catch(e) { console.log('  ' + params[pi]); }
+            }
         }
 
-        scan(body, url, 'REQ');
-        b64scan(body, url);
-
-        // Scan URL params
-        var qs = url.indexOf('?') !== -1 ? url.slice(url.indexOf('?')) : '';
-        if (qs) scan(qs, url, 'URL');
+        // Request body
+        if (body.length > 0) {
+            console.log('[REQ-BODY →] ' + body.slice(0, 1500));
+            extracteerJSON(body, url);
+            extracteerXML(body, url);
+            logBase64(body, url);
+            markeerBekend(body, url);
+        }
 
         $done({});
 
     } catch(e) {
-        console.log('[F] FOUT request: ' + e);
+        console.log('[FOUT] request: ' + e);
         try { $done({}); } catch(e2) {}
     }
 
