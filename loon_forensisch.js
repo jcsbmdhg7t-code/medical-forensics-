@@ -122,6 +122,34 @@ var PATRONEN = [
     { p: /FHIR\/R4\/AuditEvent/i,                      nb: 'NB-163' },
     { p: /api\/epic.*AuditLog/i,                       nb: 'NB-163' },
 
+    // ── Genetisch profiel module (Epic) — NB-180 ──
+    { p: /GENETICHXQNR/i,                              nb: 'NB-180' },
+    { p: /genetic-profile|genetisch\s*profiel/i,       nb: 'NB-180' },
+    { p: /epic\.px\.client\.genomics/i,                nb: 'NB-180' },
+    { p: /@epic-px\/genomics/i,                        nb: 'NB-180' },
+    { p: /genomics_drugindicator|genomics_diseaseindicator/i, nb: 'NB-180' },
+    { p: /GeneticProfileLink|geneticProfileLink/i,     nb: 'NB-180' },
+    { p: /GenomicIndicator|VariantList/i,              nb: 'NB-180' },
+    { p: /allelicState|allelicPhase|mosaicism/i,       nb: 'NB-180' },
+    { p: /DNAChangeType|variantTypeLabel|FindingType/i, nb: 'NB-180' },
+    { p: /CytogeneticLocation/i,                       nb: 'NB-180' },
+    { p: /Mijn genetisch profiel/i,                    nb: 'NB-180' },
+
+    // ── Clinician access log (verdiept) — NB-163 ──
+    { p: /accesslogs\.clinician/i,                     nb: 'NB-163' },
+    { p: /WhosAccessedMyRecord/i,                      nb: 'NB-163' },
+    { p: /ColumnLabelAccessor/i,                       nb: 'NB-163' },
+    { p: /RecordAccessed/i,                            nb: 'NB-163' },
+    { p: /@epic-px\/access-logs/i,                     nb: 'NB-163' },
+    { p: /Wie heeft mijn dossier ingezien/i,           nb: 'NB-163' },
+
+    // ── Verdachte / onverklaarbare feature flags — NB-181 ──
+    { p: /ISABELGROTHE/,                               nb: 'NB-181' },
+    { p: /NNNNNNNNN/,                                  nb: 'NB-181' },
+    { p: /\bSZMRN\b/,                                  nb: 'NB-181' },
+    { p: /VOLLEDIGPROFIEL/i,                           nb: 'NB-181' },
+    { p: /H2GDEBUG/i,                                  nb: 'NB-181' },
+
     // ── Tijdstempels / identifiers ──
     { p: /20260110033455/,                             nb: 'NB-166' },
     { p: /215672185/,                                  nb: 'NB-166' },
