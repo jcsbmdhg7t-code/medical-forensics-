@@ -23,45 +23,84 @@
 
 // ── Bekende patronen — alleen voor EXTRA markering bovenop alles ──
 var PATRONEN = [
-    { p: /F19\.1/i,                          nb: 'NB-01' },
-    { p: /neusdruppelmisbruik/i,             nb: 'NB-01' },
-    { p: /361055000/,                        nb: 'NB-03' },
-    { p: /228273003/,                        nb: 'NB-23' },
-    { p: /228366006/,                        nb: 'NB-23b' },
-    { p: /266927001/,                        nb: 'NB-23c' },
-    { p: /F60\.31/i,                         nb: 'NB-xx' },
-    { p: /20260110033455/,                   nb: 'NB-166' },
-    { p: /nullFlavor\s*=\s*["']?UNK/i,      nb: 'NB-18' },
-    { p: /extension\s*=\s*["']?999999/i,    nb: 'NB-18' },
-    { p: /extension\s*=\s*["']?51504662/i,  nb: 'NB-04' },
-    { p: /extension\s*=\s*["']?84107660/i,  nb: 'NB-04' },
-    { p: /extension\s*=\s*["']?373282512/i, nb: 'NB-05' },
-    { p: /Epic@spaarnegasthuis\.nl/i,       nb: 'NB-05' },
-    { p: /DISABLEMYCONDITIONS/i,            nb: 'NB-11' },
-    { p: /DISABLEPLANOFCARE/i,              nb: 'NB-11' },
-    { p: /SUBSTANCEHXQNR/i,                nb: 'NB-108' },
-    { p: /AUTOGENERATESIGNATURE/i,          nb: 'NB-82' },
-    { p: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i, nb: 'NB-163' },
-    { p: /noView\s*:\s*true/i,              nb: 'NB-99' },
-    { p: /hiddenProvider/i,                 nb: 'NB-12' },
-    { p: /CEDataExternal/i,                 nb: 'NB-12' },
-    { p: /override\.css/i,                  nb: 'NB-89' },
-    { p: /lucy\.css/i,                      nb: 'NB-71' },
-    { p: /recording_capture_keystrokes\s*=\s*true/i, nb: 'NB-53' },
-    { p: /hotjar\.com|hjid\s*=/i,           nb: 'NB-79' },
-    { p: /account_id\s*[:=]\s*763232/i,     nb: 'NB-178' },
-    { p: /vwo_uuid/i,                        nb: 'NB-178' },
-    { p: /ChipSoft\.PlatformServices/i,     nb: 'NB-177' },
-    { p: /GetCurrentPatientAndUserObject/i, nb: 'NB-177' },
-    { p: /2001702222/,                       nb: 'NB-177' },
-    { p: /215672185/,                        nb: 'NB-166' },
-    { p: /0133033170/,                       nb: 'NB-166' },
-    { p: /Brijder|Parnassia.*Indigo/i,      nb: 'NB-113' },
-    { p: /FocusZorgTeam.*test/i,            nb: 'NB-91' },
-    { p: /spaarne-rebuild.*hoppinger/i,     nb: 'NB-114' },
-    { p: /transactie.{0,10}77832/i,         nb: 'NB-23' },
-    { p: /centramed\.nl/i,                  nb: 'NB-179' },
-    { p: /quliRedirect/i,                    nb: 'MEDMIJ' },
+    // ── Medische codes / diagnoses ──
+    { p: /F19\.1/i,                                    nb: 'NB-01' },
+    { p: /neusdruppelmisbruik/i,                       nb: 'NB-01' },
+    { p: /361055000/,                                  nb: 'NB-03' },
+    { p: /228273003/,                                  nb: 'NB-23' },
+    { p: /228366006/,                                  nb: 'NB-23b' },
+    { p: /266927001/,                                  nb: 'NB-23c' },
+    { p: /F60\.31|borderline\s*persoon/i,              nb: 'NB-xx' },
+    { p: /transactie.{0,10}77832/i,                    nb: 'NB-23' },
+
+    // ── Anonieme/vervalste auteurs in CDA ──
+    { p: /nullFlavor\s*=\s*["']?UNK/i,                nb: 'NB-18' },
+    { p: /extension\s*=\s*["']?999999/i,              nb: 'NB-18' },
+    { p: /GUARD\b/,                                    nb: 'NB-56' },
+    { p: /HANDMATIGE_EDIT_BOM/i,                       nb: 'NB-13' },
+
+    // ── Zorgverlener extensie codes ──
+    { p: /extension\s*=\s*["']?51504662/i,             nb: 'NB-04' },
+    { p: /extension\s*=\s*["']?84107660/i,             nb: 'NB-04' },
+    { p: /extension\s*=\s*["']?373282512/i,            nb: 'NB-05' },
+    { p: /Epic@spaarnegasthuis\.nl/i,                  nb: 'NB-05' },
+
+    // ── Epic feature flags: toegang / rechten ──
+    { p: /DISABLEMYCONDITIONS/i,                       nb: 'NB-11' },
+    { p: /DISABLEPLANOFCARE/i,                         nb: 'NB-11' },
+    { p: /SUBSTANCEHXQNR/i,                            nb: 'NB-108' },
+    { p: /AUTOGENERATESIGNATURE/i,                     nb: 'NB-82' },
+    { p: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i,          nb: 'NB-163' },
+    { p: /noView\s*:\s*true/i,                         nb: 'NB-99' },
+
+    // ── CSS klassen die data verbergen ──
+    { p: /hiddenProvider/i,                            nb: 'NB-12' },
+    { p: /CEDataExternal/i,                            nb: 'NB-12' },
+    { p: /WoundListSection/i,                          nb: 'NB-12' },
+    { p: /printBlackText/i,                            nb: 'NB-84' },
+    { p: /override\.css/i,                             nb: 'NB-89' },
+    { p: /lucy\.css|lucy_colors/i,                     nb: 'NB-71' },
+
+    // ── Trackers / telemetrie ──
+    { p: /recording_capture_keystrokes\s*=\s*true/i,  nb: 'NB-53' },
+    { p: /hotjar\.com|hjid\s*=/i,                      nb: 'NB-79' },
+    { p: /sentry\.io/i,                                nb: 'NB-69' },
+    { p: /DE36B70A/i,                                  nb: 'NB-69' },
+    { p: /datadog.*browser-intake|browser-intake.*datadoghq/i, nb: 'NB-69' },
+    { p: /account_id\s*[:=]\s*763232/i,                nb: 'NB-178' },
+    { p: /vwo_uuid/i,                                  nb: 'NB-178' },
+    { p: /body\s*\{[^}]*opacity\s*:\s*0/i,             nb: 'NB-178' },
+
+    // ── Supply chain / externe partijen ──
+    { p: /hoppinger\.com/i,                            nb: 'NB-114' },
+    { p: /spaarne-rebuild\.productie\.hoppinger/i,     nb: 'NB-114' },
+    { p: /FocusZorgTeam.*test/i,                       nb: 'NB-91' },
+    { p: /centramed\.nl/i,                             nb: 'NB-179' },
+    { p: /Brijder|Parnassia.*Indigo/i,                 nb: 'NB-113' },
+
+    // ── ChipSoft HiX API — rechten / toestemmingen / endpoints ──
+    { p: /ChipSoft\.PlatformServices/i,                nb: 'NB-177' },
+    { p: /GetCurrentPatientAndUserObject/i,            nb: 'NB-177' },
+    { p: /GetPatientDocuments/i,                       nb: 'NB-177' },
+    { p: /GetPathologyResults/i,                       nb: 'NB-177' },
+    { p: /GetDcrRegistrations/i,                       nb: 'NB-177' },
+    { p: /DigiDClusterHybrid/i,                        nb: 'NB-177' },
+    { p: /DYN_CURRENT_USER/i,                          nb: 'NB-177' },
+    { p: /PATIENT_PATIENT/i,                           nb: 'NB-177' },
+    { p: /2001702222/,                                 nb: 'NB-177' },
+
+    // ── Audit log toegang ──
+    { p: /GetThirdPartyAccessLogEntries/i,             nb: 'NB-163' },
+    { p: /AccessLog|access-logs/i,                     nb: 'NB-163' },
+
+    // ── Tijdstempels / identifiers ──
+    { p: /20260110033455/,                             nb: 'NB-166' },
+    { p: /215672185/,                                  nb: 'NB-166' },
+    { p: /0133033170/,                                 nb: 'NB-166' },
+
+    // ── FHIR / MedMij ──
+    { p: /\$lastn/i,                                   nb: 'NB-109' },
+    { p: /quliRedirect/i,                              nb: 'MEDMIJ' },
 ];
 
 var BLOKKEER_HEADERS = [
