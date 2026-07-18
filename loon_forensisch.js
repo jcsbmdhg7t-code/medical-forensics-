@@ -102,9 +102,25 @@ var PATRONEN = [
     { p: /PATIENT_PATIENT/i,                           nb: 'NB-177' },
     { p: /2001702222/,                                 nb: 'NB-177' },
 
-    // ── Audit log toegang ──
+    // ── Clinician access log / wie heeft mijn dossier ingezien ──
     { p: /GetThirdPartyAccessLogEntries/i,             nb: 'NB-163' },
+    { p: /GetUserAuditTrail/i,                         nb: 'NB-163' },
+    { p: /GetPatientAuditLog/i,                        nb: 'NB-163' },
+    { p: /MyAuditTrail/i,                              nb: 'NB-163' },
+    { p: /AuditTrail/i,                                nb: 'NB-163' },
+    { p: /AccessAuditLog/i,                            nb: 'NB-163' },
+    { p: /PatientAccessLog/i,                          nb: 'NB-163' },
     { p: /AccessLog|access-logs/i,                     nb: 'NB-163' },
+    { p: /GetBreachLog/i,                              nb: 'NB-163' },
+    { p: /\/AuditLog\b|\/AuditEvent\b/i,               nb: 'NB-163' },
+    { p: /AuditEvent/i,                                nb: 'NB-163' },
+    { p: /who.{0,20}accessed|clinician.{0,20}access/i, nb: 'NB-163' },
+    { p: /heeft.{0,20}ingezien|heeft.{0,20}bekeken/i,  nb: 'NB-163' },
+    { p: /WhoViewedMyHealthRecord/i,                   nb: 'NB-163' },
+    { p: /ViewedBy|AccessedBy/i,                       nb: 'NB-163' },
+    { p: /ClinicianAccess/i,                           nb: 'NB-163' },
+    { p: /FHIR\/R4\/AuditEvent/i,                      nb: 'NB-163' },
+    { p: /api\/epic.*AuditLog/i,                       nb: 'NB-163' },
 
     // ── Tijdstempels / identifiers ──
     { p: /20260110033455/,                             nb: 'NB-166' },
