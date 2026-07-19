@@ -1,13 +1,48 @@
 // ==UserScript==
 // @name         Forensisch Scanner — MijnSpaarneGasthuis / Epic MyChart
 // @namespace    forensisch-grothe
-// @version      1.0
+// @version      1.1
 // @description  Volledig forensisch net: DOM-scan, XHR/fetch-interceptie, feature flags, verborgen elementen
 // @author       forensisch-grothe
+// ── Spaarne Gasthuis portalen ──
 // @match        https://www.mijnspaarnegasthuis.nl/*
 // @match        https://*.mijnspaarnegasthuis.nl/*
+// @match        https://spaarnegasthuis.nl/*
+// @match        https://*.spaarnegasthuis.nl/*
+// ── Epic MyChart infrastructuur ──
 // @match        https://*.epichosted.com/*
 // @match        https://*.epic.com/*
+// @match        https://*.epicsystems.com/*
+// @match        https://*.myepichost.com/*
+// @match        https://*.mychartcentral.com/*
+// ── MedMij / PGO authenticatie ──
+// @match        https://*.medmij.nl/*
+// @match        https://medmij.nl/*
+// @match        https://*.mijnggz.nl/*
+// @match        https://*.dvza.nl/*
+// @match        https://*.heliview.nl/*
+// ── DigiD authenticatie ──
+// @match        https://digid.nl/*
+// @match        https://www.digid.nl/*
+// @match        https://*.digid.nl/*
+// ── Quli / quliRedirect flow ──
+// @match        https://*.quli.nl/*
+// @match        https://quli.nl/*
+// ── ZORG-AB / Whitelist PGO aanbieders ──
+// @match        https://*.zorgab.nl/*
+// @match        https://zorgab.nl/*
+// ── VZVZ / AORTA ──
+// @match        https://*.vzvz.nl/*
+// @match        https://*.aorta.nl/*
+// ── Vecozo (zorgverzekering koppeling) ──
+// @match        https://*.vecozo.nl/*
+// ── Ons.app / andere PGO portalen ──
+// @match        https://*.ons.nl/*
+// @match        https://*.mijnzorgapp.nl/*
+// @match        https://*.patientportaal.nl/*
+// ── CDN / statische assets Epic ──
+// @match        https://*.epiccdn.com/*
+// @match        https://*.epicstatic.com/*
 // @grant        GM_setClipboard
 // @grant        GM_setValue
 // @grant        GM_getValue
