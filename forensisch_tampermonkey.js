@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Forensisch Scanner — MijnSpaarneGasthuis / Epic MyChart
 // @namespace    forensisch-grothe
-// @version      1.1
+// @version      1.2
 // @description  Volledig forensisch net: DOM-scan, XHR/fetch-interceptie, feature flags, verborgen elementen
 // @author       forensisch-grothe
 // ── Spaarne Gasthuis portalen ──
@@ -490,21 +490,27 @@ function toonOverlay(tekst) {
 }
 
 function maakDrijvendeKnop() {
+    if (document.getElementById('__for_tm_btn__')) return;
     var knop = document.createElement('button');
     knop.id = '__for_tm_btn__';
     knop.textContent = '🔍 FOR';
     knop.style.cssText = [
-        'position:fixed','bottom:20px','right:20px','z-index:2147483646',
-        'background:#ff3333','color:#fff','border:none','border-radius:50%',
-        'width:52px','height:52px','font-size:11px','font-weight:bold',
-        'cursor:pointer','box-shadow:0 2px 8px rgba(0,0,0,0.5)',
-        'font-family:monospace'
+        'position:fixed','bottom:20px','right:20px','z-index:2147483647',
+        'background:#ff3333','color:#fff','border:2px solid #fff','border-radius:8px',
+        'width:64px','height:64px','font-size:13px','font-weight:bold',
+        'cursor:pointer','box-shadow:0 4px 16px rgba(0,0,0,0.8)',
+        'font-family:monospace','line-height:1.2'
     ].join(';');
     knop.addEventListener('click', function() {
-        var rapport = voerScanUit();
-        toonOverlay(rapport);
+        var overlay = document.getElementById('__for_tm_overlay__');
+        if (overlay) {
+            overlay.parentNode.removeChild(overlay);
+        } else {
+            toonOverlay(voerScanUit());
+        }
     });
-    document.documentElement.appendChild(knop);
+    var doel = document.body || document.documentElement;
+    doel.appendChild(knop);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -512,18 +518,21 @@ function maakDrijvendeKnop() {
 // ══════════════════════════════════════════════════════════════
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(maakDrijvendeKnop, 1000);
+        setTimeout(maakDrijvendeKnop, 500);
     });
 } else {
-    setTimeout(maakDrijvendeKnop, 1000);
+    setTimeout(maakDrijvendeKnop, 500);
 }
 
-// Automatische scan na 3 seconden (Epic heeft tijd nodig om te laden)
+// Automatische scan na 4 seconden — toont overlay meteen op scherm
 setTimeout(function() {
+    maakDrijvendeKnop();
     var rapport = voerScanUit();
     console.log('[FORENSISCH AUTO-SCAN]');
     console.log(rapport);
-    // GM_notification voor treffers
+    // Overlay direct tonen
+    toonOverlay(rapport);
+    // GM_notification voor kritieke flags
     var vlaggen = epicFeatureVlaggen();
     var kritiekAan = ['DISABLEMYCONDITIONS','DISABLEPLANOFCARE','H2GDEBUG','ISABELGROTHE']
         .filter(function(f) { return vlaggen.indexOf(f) !== -1; });
@@ -536,6 +545,6 @@ setTimeout(function() {
             });
         } catch(e) {}
     }
-}, 3000);
+}, 4000);
 
 })();
