@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Forensisch Scanner — MijnSpaarneGasthuis / Epic MyChart
 // @namespace    forensisch-grothe
-// @version      1.3
+// @version      1.4
 // @description  Volledig forensisch net: DOM-scan, XHR/fetch-interceptie, feature flags, verborgen elementen
 // @author       forensisch-grothe
 // ── Spaarne Gasthuis portalen ──
@@ -304,6 +304,7 @@ function verborgenElementen() {
     var alle = document.querySelectorAll('*');
     for (var i = 0; i < alle.length; i++) {
         var el = alle[i];
+        if (el.id && el.id.indexOf('__for_') === 0) continue;
         try {
             var cs = window.getComputedStyle(el);
             var reden = '';
@@ -320,6 +321,73 @@ function verborgenElementen() {
         } catch(e) {}
     }
     return resultaten;
+}
+
+// Onthul verborgen elementen IN de portal — zichtbaar maken met gele markering
+function onthulVerborgen() {
+    var onthuld = 0;
+    var alle = document.querySelectorAll('*');
+    for (var i = 0; i < alle.length; i++) {
+        var el = alle[i];
+        if (el.id && el.id.indexOf('__for_') === 0) continue;
+        if (el.getAttribute('data-for-onthuld')) continue;
+        try {
+            var cs = window.getComputedStyle(el);
+            var reden = '';
+            if (cs.display === 'none') reden = 'display:none';
+            else if (cs.visibility === 'hidden') reden = 'visibility:hidden';
+            else if (parseFloat(cs.opacity) === 0) reden = 'opacity:0';
+            else if (parseFloat(cs.height) === 0 && cs.overflow === 'hidden') reden = 'height:0+overflow:hidden';
+            if (!reden) continue;
+            var tekst = (el.textContent || '').trim();
+            if (tekst.length < 2) continue;
+
+            // Maak zichtbaar — !important overschrijft pagina-CSS
+            el.style.cssText += ';display:block!important;visibility:visible!important;opacity:1!important;height:auto!important;overflow:visible!important;max-height:none!important;clip:auto!important;';
+            // Gele markering
+            el.style.setProperty('outline', '2px dashed #f59e0b', 'important');
+            el.style.setProperty('background-color', 'rgba(245,158,11,0.08)', 'important');
+            el.setAttribute('data-for-onthuld', reden);
+
+            // Label: klein geel bannetje bovenaan het element
+            var label = document.createElement('div');
+            label.className = '__for_label__';
+            label.textContent = '▲ WAS VERBORGEN — ' + reden;
+            label.style.cssText = [
+                'display:block!important','visibility:visible!important','opacity:1!important',
+                'background:#f59e0b','color:#000','font-size:10px','line-height:1.4',
+                'font-family:monospace','font-weight:bold','padding:2px 8px',
+                'border-radius:2px 2px 0 0','margin-bottom:2px',
+                'pointer-events:none','position:relative','z-index:2147483640'
+            ].join(';');
+            el.insertBefore(label, el.firstChild);
+            onthuld++;
+        } catch(e) {}
+    }
+    return onthuld;
+}
+
+// Herstel — verwijder alle forensische markeringen
+function herstelVerborgen() {
+    var labels = document.querySelectorAll('.__for_label__');
+    for (var i = 0; i < labels.length; i++) {
+        try { labels[i].parentNode.removeChild(labels[i]); } catch(e) {}
+    }
+    var gemarkeerd = document.querySelectorAll('[data-for-onthuld]');
+    for (var j = 0; j < gemarkeerd.length; j++) {
+        var el = gemarkeerd[j];
+        var reden = el.getAttribute('data-for-onthuld');
+        el.removeAttribute('data-for-onthuld');
+        try {
+            if (reden === 'display:none')              el.style.removeProperty('display');
+            if (reden === 'visibility:hidden')         el.style.removeProperty('visibility');
+            if (reden === 'opacity:0')                 el.style.removeProperty('opacity');
+            if (reden === 'height:0+overflow:hidden')  { el.style.removeProperty('height'); el.style.removeProperty('overflow'); }
+            el.style.removeProperty('outline');
+            el.style.removeProperty('background-color');
+            el.style.removeProperty('max-height');
+        } catch(e) {}
+    }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -416,119 +484,193 @@ function voerScanUit() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// UI — floating knop + overlay
+// UI — zijpaneel rechts (portaal blijft zichtbaar links)
 // ══════════════════════════════════════════════════════════════
-function toonOverlay(tekst) {
-    var bestaand = document.getElementById('__for_tm_overlay__');
+function toonZijpaneel(tekst) {
+    var bestaand = document.getElementById('__for_tm_paneel__');
     if (bestaand) bestaand.parentNode.removeChild(bestaand);
 
-    // Buitenste container — vult het scherm, geen overflow zodat knoppen vast staan
-    var overlay = document.createElement('div');
-    overlay.id = '__for_tm_overlay__';
-    overlay.style.cssText = [
-        'position:fixed','top:0','left:0','width:100%','height:100%',
-        'background:#000','color:#00ff41','font-family:monospace',
-        'font-size:12px','z-index:2147483647','display:flex',
-        'flex-direction:column','box-sizing:border-box'
+    var paneel = document.createElement('div');
+    paneel.id = '__for_tm_paneel__';
+    paneel.style.cssText = [
+        'position:fixed','top:0','right:0','width:340px','max-width:90vw',
+        'height:100%','background:rgba(10,12,18,0.97)',
+        'color:#00ff41','font-family:SFMono-Regular,Menlo,monospace',
+        'font-size:11px','z-index:2147483647','display:flex',
+        'flex-direction:column','box-sizing:border-box',
+        'border-left:2px solid #00e57a',
+        'box-shadow:-4px 0 24px rgba(0,0,0,0.7)'
     ].join(';');
 
-    // Knoppenbalk — altijd bovenaan, scrollt NIET mee
+    // Vaste knoppenbalk bovenaan
     var balk = document.createElement('div');
     balk.style.cssText = [
-        'flex-shrink:0','background:#111','border-bottom:2px solid #00ff41',
-        'padding:10px 12px','display:flex','gap:10px','align-items:center',
-        'flex-wrap:wrap'
+        'flex-shrink:0','background:#0d0f16',
+        'border-bottom:1px solid #1a2030',
+        'padding:8px 10px','display:flex','gap:6px',
+        'align-items:center','flex-wrap:wrap'
     ].join(';');
 
-    var stijlKnop = 'border:none;padding:10px 18px;font-weight:bold;cursor:pointer;font-family:monospace;font-size:14px;border-radius:4px;';
+    var s = 'border:none;padding:7px 12px;font-weight:bold;cursor:pointer;font-family:monospace;font-size:12px;border-radius:3px;';
 
-    var knopSluit = document.createElement('button');
-    knopSluit.textContent = '✕ SLUIT';
-    knopSluit.style.cssText = stijlKnop + 'background:#ff3333;color:#fff;';
-    knopSluit.addEventListener('click', function() {
-        overlay.parentNode.removeChild(overlay);
+    function maakKnop(label, bg, fg) {
+        var k = document.createElement('button');
+        k.textContent = label;
+        k.style.cssText = s + 'background:' + bg + ';color:' + fg + ';';
+        return k;
+    }
+
+    var kSluit    = maakKnop('✕ SLUIT',   '#cc2222', '#fff');
+    var kKopieer  = maakKnop('KOPIEER',   '#00c853', '#000');
+    var kNetwerk  = maakKnop('NETWERK',   '#0077cc', '#fff');
+    var kOnthul   = maakKnop('ONTHUL',    '#f59e0b', '#000');
+    var kHerstel  = maakKnop('HERSTEL',   '#334',    '#aaa');
+
+    kSluit.addEventListener('click', function() {
+        paneel.parentNode.removeChild(paneel);
     });
 
-    var knopKopieer = document.createElement('button');
-    knopKopieer.textContent = 'KOPIEER RAPPORT';
-    knopKopieer.style.cssText = stijlKnop + 'background:#00ff41;color:#000;';
-    knopKopieer.addEventListener('click', function() {
-        try { GM_setClipboard(tekst); } catch(e) {
-            try { navigator.clipboard.writeText(tekst); } catch(e2) {
-                var ta = document.createElement('textarea');
-                ta.value = tekst; document.body.appendChild(ta);
-                ta.select(); document.execCommand('copy');
-                document.body.removeChild(ta);
-            }
+    kKopieer.addEventListener('click', function() {
+        function doCopy(t) {
+            try { GM_setClipboard(t); return; } catch(e) {}
+            try { navigator.clipboard.writeText(t); return; } catch(e) {}
+            var ta = document.createElement('textarea');
+            ta.value = t; document.body.appendChild(ta);
+            ta.select(); document.execCommand('copy');
+            document.body.removeChild(ta);
         }
-        knopKopieer.textContent = '✓ GEKOPIEERD';
-        setTimeout(function() { knopKopieer.textContent = 'KOPIEER RAPPORT'; }, 2500);
+        doCopy(tekst);
+        kKopieer.textContent = '✓ OK';
+        setTimeout(function() { kKopieer.textContent = 'KOPIEER'; }, 2000);
     });
 
-    var knopNetwerk = document.createElement('button');
-    knopNetwerk.textContent = 'NETWERK (' + netwerkLog.length + ')';
-    knopNetwerk.style.cssText = stijlKnop + 'background:#0088ff;color:#fff;';
-    knopNetwerk.addEventListener('click', function() {
-        var netTekst = netwerkLog.map(function(e) {
+    kNetwerk.addEventListener('click', function() {
+        var nt = netwerkLog.map(function(e) {
             return '[' + e.t + '] ' + e.r + ' ' + e.m + ' HTTP' + e.s + '\n'
                  + 'URL: ' + e.u + '\n'
                  + (e.nb ? 'NB: ' + e.nb + '\n' : '')
-                 + 'BODY:\n' + e.body + '\n' + '────────────────────────────────────────';
+                 + 'BODY:\n' + e.body + '\n────────────────────────────────';
         }).join('\n');
-        try { GM_setClipboard(netTekst || 'Geen netwerk gelogd.'); } catch(e) {
-            try { navigator.clipboard.writeText(netTekst || 'Geen netwerk gelogd.'); } catch(e2) {}
+        function doCopy(t) {
+            try { GM_setClipboard(t); return; } catch(e) {}
+            try { navigator.clipboard.writeText(t); } catch(e) {}
         }
-        knopNetwerk.textContent = '✓ GEKOPIEERD';
-        setTimeout(function() { knopNetwerk.textContent = 'NETWERK (' + netwerkLog.length + ')'; }, 2500);
+        doCopy(nt || 'Geen netwerk.');
+        kNetwerk.textContent = '✓ OK';
+        setTimeout(function() { kNetwerk.textContent = 'NETWERK'; }, 2000);
     });
 
-    // Label rechtsboven
-    var label = document.createElement('span');
-    label.textContent = 'FORENSISCH SCANNER';
-    label.style.cssText = 'color:#00ff41;font-size:11px;margin-left:auto;opacity:0.6;';
+    kOnthul.addEventListener('click', function() {
+        var n = onthulVerborgen();
+        kOnthul.textContent = '▲ ' + n + ' ONTHULD';
+        setTimeout(function() { kOnthul.textContent = 'ONTHUL'; }, 3000);
+    });
 
-    balk.appendChild(knopSluit);
-    balk.appendChild(knopKopieer);
-    balk.appendChild(knopNetwerk);
-    balk.appendChild(label);
+    kHerstel.addEventListener('click', function() {
+        herstelVerborgen();
+        kHerstel.textContent = '↩ HERSTELD';
+        setTimeout(function() { kHerstel.textContent = 'HERSTEL'; }, 2000);
+    });
 
-    // Scrollbaar tekstgebied — neemt de rest van de hoogte in
-    var inhoudDiv = document.createElement('div');
-    inhoudDiv.style.cssText = [
-        'flex:1','overflow-y:auto','overflow-x:hidden',
-        'padding:14px','white-space:pre-wrap','word-break:break-all',
-        '-webkit-overflow-scrolling:touch'
+    balk.appendChild(kSluit);
+    balk.appendChild(kKopieer);
+    balk.appendChild(kNetwerk);
+    balk.appendChild(kOnthul);
+    balk.appendChild(kHerstel);
+
+    // Telregel: samenvatting bovenaan
+    var samenvatting = document.createElement('div');
+    samenvatting.id = '__for_tm_samenvatting__';
+    samenvatting.style.cssText = [
+        'flex-shrink:0','padding:6px 10px',
+        'font-size:10px','color:#4a9','background:#0d1117',
+        'border-bottom:1px solid #1a2030','line-height:1.5'
     ].join(';');
-    inhoudDiv.textContent = tekst;
+    samenvatting.textContent = '⟳ Scannen…';
 
-    overlay.appendChild(balk);
-    overlay.appendChild(inhoudDiv);
+    // Scrollbaar tekstgebied
+    var inhoud = document.createElement('div');
+    inhoud.style.cssText = [
+        'flex:1','overflow-y:auto','overflow-x:hidden',
+        'padding:10px 12px','white-space:pre-wrap','word-break:break-all',
+        'line-height:1.55','-webkit-overflow-scrolling:touch'
+    ].join(';');
+    inhoud.textContent = tekst;
+
+    paneel.appendChild(balk);
+    paneel.appendChild(samenvatting);
+    paneel.appendChild(inhoud);
     var doel = document.body || document.documentElement;
-    doel.appendChild(overlay);
+    doel.appendChild(paneel);
+    return samenvatting;
+}
+
+function bijwerkSamenvatting(el, domHits, vlaggenAan, onthuld, netwerk) {
+    if (!el) return;
+    var regels = [
+        '● DOM-treffers: ' + domHits,
+        '● Kritieke flags: ' + vlaggenAan,
+        '● Onthuld: ' + onthuld + ' verborgen elem.',
+        '● Netwerk: ' + netwerk + ' verzoeken'
+    ];
+    el.textContent = regels.join('   ');
 }
 
 function maakDrijvendeKnop() {
     if (document.getElementById('__for_tm_btn__')) return;
     var knop = document.createElement('button');
     knop.id = '__for_tm_btn__';
-    knop.textContent = '🔍 FOR';
+    knop.textContent = '🔍';
     knop.style.cssText = [
-        'position:fixed','bottom:20px','right:20px','z-index:2147483647',
-        'background:#ff3333','color:#fff','border:2px solid #fff','border-radius:8px',
-        'width:64px','height:64px','font-size:13px','font-weight:bold',
-        'cursor:pointer','box-shadow:0 4px 16px rgba(0,0,0,0.8)',
-        'font-family:monospace','line-height:1.2'
+        'position:fixed','bottom:24px','right:24px','z-index:2147483647',
+        'background:#cc2222','color:#fff','border:2px solid #fff',
+        'border-radius:50%','width:52px','height:52px','font-size:20px',
+        'cursor:pointer','box-shadow:0 3px 12px rgba(0,0,0,0.7)',
+        'line-height:1'
     ].join(';');
     knop.addEventListener('click', function() {
-        var overlay = document.getElementById('__for_tm_overlay__');
-        if (overlay) {
-            overlay.parentNode.removeChild(overlay);
+        var paneel = document.getElementById('__for_tm_paneel__');
+        if (paneel) {
+            paneel.parentNode.removeChild(paneel);
         } else {
-            toonOverlay(voerScanUit());
+            voerVolledigeScanUit();
         }
     });
     var doel = document.body || document.documentElement;
     doel.appendChild(knop);
+}
+
+function voerVolledigeScanUit() {
+    // 1. Verborgen elementen direct onthullen in de pagina
+    var onthuld = onthulVerborgen();
+
+    // 2. Rapport genereren
+    var rapport = voerScanUit();
+
+    // 3. Zijpaneel tonen
+    var samenvattingEl = toonZijpaneel(rapport);
+
+    // 4. Samenvatting invullen
+    var domHits = (rapport.match(/\[NB-/g) || []).length;
+    var vlaggen = epicFeatureVlaggen();
+    var kritiekAan = ['DISABLEMYCONDITIONS','DISABLEPLANOFCARE','H2GDEBUG','ISABELGROTHE','GENETICHXQNR','SZMRN','NNNNNNNNN']
+        .filter(function(f) { return vlaggen.indexOf(f) !== -1; }).length;
+    bijwerkSamenvatting(samenvattingEl, domHits, kritiekAan, onthuld, netwerkLog.length);
+
+    console.log('[FORENSISCH]', rapport);
+
+    // 5. Melding bij kritieke flags
+    if (kritiekAan > 0) {
+        try {
+            GM_notification({
+                title: 'Forensisch — ' + kritiekAan + ' kritieke flag(s)',
+                text: vlaggen.filter(function(f) {
+                    return ['DISABLEMYCONDITIONS','DISABLEPLANOFCARE','H2GDEBUG','ISABELGROTHE','GENETICHXQNR'].indexOf(f) !== -1;
+                }).join(', '),
+                timeout: 7000
+            });
+        } catch(e) {}
+    }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -542,27 +684,10 @@ if (document.readyState === 'loading') {
     setTimeout(maakDrijvendeKnop, 500);
 }
 
-// Automatische scan na 4 seconden — toont overlay meteen op scherm
+// Automatische scan na 4 seconden
 setTimeout(function() {
     maakDrijvendeKnop();
-    var rapport = voerScanUit();
-    console.log('[FORENSISCH AUTO-SCAN]');
-    console.log(rapport);
-    // Overlay direct tonen
-    toonOverlay(rapport);
-    // GM_notification voor kritieke flags
-    var vlaggen = epicFeatureVlaggen();
-    var kritiekAan = ['DISABLEMYCONDITIONS','DISABLEPLANOFCARE','H2GDEBUG','ISABELGROTHE']
-        .filter(function(f) { return vlaggen.indexOf(f) !== -1; });
-    if (kritiekAan.length > 0) {
-        try {
-            GM_notification({
-                title: 'Forensisch — Kritieke flags',
-                text: kritiekAan.join(', '),
-                timeout: 6000
-            });
-        } catch(e) {}
-    }
+    voerVolledigeScanUit();
 }, 4000);
 
 })();
