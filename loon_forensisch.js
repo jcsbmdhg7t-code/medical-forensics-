@@ -332,26 +332,40 @@ function markeerBekend(body, url) {
 // Chunks: forensisch_log_0, forensisch_log_1, forensisch_log_2 ...
 // forensisch_chunk = huidig chunknummer
 // Via Data Persistence → Export Data komen ALLE chunks mee.
-function slaOpInStore(url, status, bytes, nbHits, cookieProblemen) {
+function slaOpInStore(url, status, bytes, nbHits, cookieProblemen, bodyContent, reqBodyContent) {
     try {
         var chunk = parseInt($persistentStore.read('forensisch_chunk') || '0') || 0;
         var key = 'forensisch_log_' + chunk;
         var bestaand = $persistentStore.read(key) || '[]';
         var log;
         try { log = JSON.parse(bestaand); } catch(e) { log = []; }
-        log.push({
+
+        var entry = {
             t: new Date().toISOString().slice(0, 19).replace('T', ' '),
             u: url.split('?')[0].slice(0, 200),
             s: status,
             b: bytes,
             nb: nbHits && nbHits.length > 0 ? nbHits.join(',') : null,
             ck: cookieProblemen && cookieProblemen.length > 0 ? cookieProblemen.join(',') : null
-        });
+        };
+
+        // Body volledig opslaan per transactie in eigen sleutel
+        var idx = chunk + '_' + log.length;
+        if (bodyContent && bodyContent.length > 0) {
+            $persistentStore.write(bodyContent, 'forensisch_resp_' + idx);
+            entry.rk = idx;
+        }
+        if (reqBodyContent && reqBodyContent.length > 0) {
+            $persistentStore.write(reqBodyContent, 'forensisch_req_' + idx);
+            entry.qk = idx;
+        }
+
+        log.push(entry);
         $persistentStore.write(JSON.stringify(log), key);
-        if (log.length >= 1000) {
+        if (log.length >= 500) {
             var volgend = chunk + 1;
             $persistentStore.write(String(volgend), 'forensisch_chunk');
-            console.log('[STORE] forensisch_log_' + chunk + ' vol (1000) → forensisch_log_' + volgend + ' gestart');
+            console.log('[STORE] forensisch_log_' + chunk + ' vol → forensisch_log_' + volgend + ' gestart');
         }
     } catch(e) {
         console.log('[STORE FOUT] ' + e);
@@ -422,11 +436,11 @@ if (isResp) {
             console.log('[SET-COOKIE] ' + s(setCookies));
         }
 
-        // ── REGEL 6: volledige body dump — alles, geen limiet ──
+        // ── REGEL 6: volledige body dump — chunks van 4000 (minder logregels) ──
         if (body.length > 0) {
             console.log('[BODY BEGIN →] ' + body.length + ' bytes totaal');
-            for (var i = 0; i < body.length; i += 500) {
-                console.log(body.slice(i, i + 500));
+            for (var i = 0; i < body.length; i += 4000) {
+                console.log(body.slice(i, i + 4000));
             }
             console.log('[← BODY EINDE]');
         }
@@ -434,8 +448,8 @@ if (isResp) {
         // ── REGEL 7: request body volledig vastleggen ──
         if (reqBody.length > 0) {
             console.log('[REQ-BODY BEGIN →] ' + reqBody.length + ' bytes totaal');
-            for (var ri = 0; ri < reqBody.length; ri += 500) {
-                console.log(reqBody.slice(ri, ri + 500));
+            for (var ri = 0; ri < reqBody.length; ri += 4000) {
+                console.log(reqBody.slice(ri, ri + 4000));
             }
             console.log('[← REQ-BODY EINDE]');
         }
@@ -481,7 +495,7 @@ if (isResp) {
             if (ckStr.toLowerCase().indexOf('httponly') === -1) ckProblemen.push('geen-HttpOnly');
             if (ckStr.toLowerCase().indexOf('samesite') === -1) ckProblemen.push('geen-SameSite');
         }
-        slaOpInStore(url, status, body.length, nbHits, ckProblemen);
+        slaOpInStore(url, status, body.length, nbHits, ckProblemen, body, reqBody);
 
         // ── Verwijder blokkerende headers ──
         for (var bi = 0; bi < BLOKKEER_HEADERS.length; bi++) {
