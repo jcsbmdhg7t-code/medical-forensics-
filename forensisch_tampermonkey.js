@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Forensisch Scanner — MijnSpaarneGasthuis / Epic MyChart
 // @namespace    forensisch-grothe
-// @version      1.2
+// @version      1.3
 // @description  Volledig forensisch net: DOM-scan, XHR/fetch-interceptie, feature flags, verborgen elementen
 // @author       forensisch-grothe
 // ── Spaarne Gasthuis portalen ──
@@ -422,71 +422,89 @@ function toonOverlay(tekst) {
     var bestaand = document.getElementById('__for_tm_overlay__');
     if (bestaand) bestaand.parentNode.removeChild(bestaand);
 
+    // Buitenste container — vult het scherm, geen overflow zodat knoppen vast staan
     var overlay = document.createElement('div');
     overlay.id = '__for_tm_overlay__';
     overlay.style.cssText = [
         'position:fixed','top:0','left:0','width:100%','height:100%',
-        'background:rgba(0,0,0,0.95)','color:#00ff41','font-family:monospace',
-        'font-size:11px','z-index:2147483647','overflow:auto','padding:16px',
-        'box-sizing:border-box','white-space:pre-wrap','word-break:break-all'
+        'background:#000','color:#00ff41','font-family:monospace',
+        'font-size:12px','z-index:2147483647','display:flex',
+        'flex-direction:column','box-sizing:border-box'
     ].join(';');
 
-    var knoppen = document.createElement('div');
-    knoppen.style.cssText = 'position:sticky;top:0;background:#111;padding:8px;margin-bottom:12px;display:flex;gap:8px;';
+    // Knoppenbalk — altijd bovenaan, scrollt NIET mee
+    var balk = document.createElement('div');
+    balk.style.cssText = [
+        'flex-shrink:0','background:#111','border-bottom:2px solid #00ff41',
+        'padding:10px 12px','display:flex','gap:10px','align-items:center',
+        'flex-wrap:wrap'
+    ].join(';');
+
+    var stijlKnop = 'border:none;padding:10px 18px;font-weight:bold;cursor:pointer;font-family:monospace;font-size:14px;border-radius:4px;';
+
+    var knopSluit = document.createElement('button');
+    knopSluit.textContent = '✕ SLUIT';
+    knopSluit.style.cssText = stijlKnop + 'background:#ff3333;color:#fff;';
+    knopSluit.addEventListener('click', function() {
+        overlay.parentNode.removeChild(overlay);
+    });
 
     var knopKopieer = document.createElement('button');
-    knopKopieer.textContent = 'KOPIEER';
-    knopKopieer.style.cssText = 'background:#00ff41;color:#000;border:none;padding:6px 14px;font-weight:bold;cursor:pointer;font-family:monospace;';
+    knopKopieer.textContent = 'KOPIEER RAPPORT';
+    knopKopieer.style.cssText = stijlKnop + 'background:#00ff41;color:#000;';
     knopKopieer.addEventListener('click', function() {
-        try {
-            GM_setClipboard(tekst);
-            knopKopieer.textContent = 'GEKOPIEERD';
-            setTimeout(function() { knopKopieer.textContent = 'KOPIEER'; }, 2000);
-        } catch(e) {
-            navigator.clipboard.writeText(tekst).catch(function() {
+        try { GM_setClipboard(tekst); } catch(e) {
+            try { navigator.clipboard.writeText(tekst); } catch(e2) {
                 var ta = document.createElement('textarea');
-                ta.value = tekst;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
+                ta.value = tekst; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy');
                 document.body.removeChild(ta);
-                knopKopieer.textContent = 'GEKOPIEERD';
-            });
+            }
         }
+        knopKopieer.textContent = '✓ GEKOPIEERD';
+        setTimeout(function() { knopKopieer.textContent = 'KOPIEER RAPPORT'; }, 2500);
     });
 
     var knopNetwerk = document.createElement('button');
     knopNetwerk.textContent = 'NETWERK (' + netwerkLog.length + ')';
-    knopNetwerk.style.cssText = 'background:#0088ff;color:#fff;border:none;padding:6px 14px;font-weight:bold;cursor:pointer;font-family:monospace;';
+    knopNetwerk.style.cssText = stijlKnop + 'background:#0088ff;color:#fff;';
     knopNetwerk.addEventListener('click', function() {
         var netTekst = netwerkLog.map(function(e) {
             return '[' + e.t + '] ' + e.r + ' ' + e.m + ' HTTP' + e.s + '\n'
                  + 'URL: ' + e.u + '\n'
                  + (e.nb ? 'NB: ' + e.nb + '\n' : '')
-                 + 'BODY:\n' + e.body + '\n' + '─'.repeat(60);
+                 + 'BODY:\n' + e.body + '\n' + '────────────────────────────────────────';
         }).join('\n');
-        GM_setClipboard(netTekst || 'Geen netwerk gelogd.');
-        knopNetwerk.textContent = 'GEKOPIEERD!';
-        setTimeout(function() { knopNetwerk.textContent = 'NETWERK (' + netwerkLog.length + ')'; }, 2000);
+        try { GM_setClipboard(netTekst || 'Geen netwerk gelogd.'); } catch(e) {
+            try { navigator.clipboard.writeText(netTekst || 'Geen netwerk gelogd.'); } catch(e2) {}
+        }
+        knopNetwerk.textContent = '✓ GEKOPIEERD';
+        setTimeout(function() { knopNetwerk.textContent = 'NETWERK (' + netwerkLog.length + ')'; }, 2500);
     });
 
-    var knopSluit = document.createElement('button');
-    knopSluit.textContent = 'SLUIT';
-    knopSluit.style.cssText = 'background:#ff3333;color:#fff;border:none;padding:6px 14px;font-weight:bold;cursor:pointer;font-family:monospace;';
-    knopSluit.addEventListener('click', function() {
-        overlay.parentNode.removeChild(overlay);
-    });
+    // Label rechtsboven
+    var label = document.createElement('span');
+    label.textContent = 'FORENSISCH SCANNER';
+    label.style.cssText = 'color:#00ff41;font-size:11px;margin-left:auto;opacity:0.6;';
 
-    knoppen.appendChild(knopKopieer);
-    knoppen.appendChild(knopNetwerk);
-    knoppen.appendChild(knopSluit);
+    balk.appendChild(knopSluit);
+    balk.appendChild(knopKopieer);
+    balk.appendChild(knopNetwerk);
+    balk.appendChild(label);
 
-    var inhoud = document.createElement('div');
-    inhoud.textContent = tekst;
+    // Scrollbaar tekstgebied — neemt de rest van de hoogte in
+    var inhoudDiv = document.createElement('div');
+    inhoudDiv.style.cssText = [
+        'flex:1','overflow-y:auto','overflow-x:hidden',
+        'padding:14px','white-space:pre-wrap','word-break:break-all',
+        '-webkit-overflow-scrolling:touch'
+    ].join(';');
+    inhoudDiv.textContent = tekst;
 
-    overlay.appendChild(knoppen);
-    overlay.appendChild(inhoud);
-    document.documentElement.appendChild(overlay);
+    overlay.appendChild(balk);
+    overlay.appendChild(inhoudDiv);
+    var doel = document.body || document.documentElement;
+    doel.appendChild(overlay);
 }
 
 function maakDrijvendeKnop() {
