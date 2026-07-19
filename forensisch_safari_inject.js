@@ -505,15 +505,15 @@ function toonOverlay(rapport) {
 function runMain() {
     var rapport = voerScanUit();
     toonOverlay(rapport);
-    // Shortcuts "Voer JavaScript uit" pakt de return-waarde op
-    return rapport;
+    // Shortcuts "Voer JavaScript uit op webpagina" vereist completion()
+    completion(rapport);
 }
 
 // Start
 try {
     runMain();
 } catch (e) {
-    alert('Forensisch scan fout: ' + e);
+    completion('FOUT: ' + e);
 }
 
 })();
