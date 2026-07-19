@@ -573,11 +573,11 @@ if (isResp) {
             markeerBekend(body, url);
         }
 
-        $done({});
+        $done({ headers: headers });
 
     } catch(e) {
         console.log('[FOUT] request: ' + e);
-        try { $done({}); } catch(e2) {}
+        try { $done({ headers: headers }); } catch(e2) { try { $done({}); } catch(e3) {} }
     }
 
 } else {
