@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Ingebrekestelling &mdash; Spaarne Gasthuis / Epic MyChart &mdash; I. Grothe</title>
+<style>
+:root {
+  --bg:#fdfcfa;--surface:#ffffff;--border:#d4cfc5;--text:#1a1916;--text2:#4a4540;--text3:#8a857c;
+  --accent:#1a3a5c;--red:#b91c1c;--red-bg:#fef2f2;--red-border:#fecaca;
+  --mono:'Courier New','Consolas',monospace;
+  --serif:Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',sans-serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0d0f14;--surface:#13151e;--border:#252835;--text:#e5e2da;--text2:#a09b93;--text3:#5a5650;
+  --accent:#7eb3e0;--red:#f87171;--red-bg:#2d1515;--red-border:#7f1d1d;
+}}
+:root[data-theme="light"]{--bg:#fdfcfa;--surface:#ffffff;--border:#d4cfc5;--text:#1a1916;--text2:#4a4540;--text3:#8a857c;--accent:#1a3a5c;--red:#b91c1c;--red-bg:#fef2f2;--red-border:#fecaca;}
+:root[data-theme="dark"]{--bg:#0d0f14;--surface:#13151e;--border:#252835;--text:#e5e2da;--text2:#a09b93;--text3:#5a5650;--accent:#7eb3e0;--red:#f87171;--red-bg:#2d1515;--red-border:#7f1d1d;}
+
+*,*::before,*::after{box-sizing:border-box}
+html{font-size:15px}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65}
+
+.page{max-width:760px;margin:0 auto;padding:3rem 2rem 5rem}
+
+@media print{
+  body{background:#fff;color:#000}
+  .no-print{display:none}
+  .page{padding:0;max-width:100%}
+}
+
+.alert{background:var(--red-bg);border-left:4px solid var(--red);padding:.85rem 1.1rem;margin-bottom:2rem;font-size:.88rem;color:var(--red)}
+.alert strong{display:block;margin-bottom:.25rem;font-size:.92rem}
+
+.addr-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2.5rem;font-size:.9rem}
+.addr-block p{margin:.1rem 0}
+.addr-label{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem}
+
+.subject-block{border-top:2px solid var(--text);border-bottom:1px solid var(--border);padding:.75rem 0;margin-bottom:2rem}
+.subject-label{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.subject-text{font-weight:700;font-size:1rem;color:var(--text);margin-top:.2rem}
+
+p{margin:0 0 1rem}
+ol,ul{margin:0 0 1rem;padding-left:1.5rem}
+li{margin-bottom:.4rem}
+strong{font-weight:600}
+
+.exhibit-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0 1.5rem;font-family:var(--mono)}
+.exhibit-table th{background:var(--surface);border:1px solid var(--border);padding:.45rem .6rem;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;font-family:var(--sans);color:var(--text2);font-weight:600;text-align:left}
+.exhibit-table td{border:1px solid var(--border);padding:.4rem .6rem;vertical-align:top;word-break:break-all}
+.exhibit-table tr:nth-child(even) td{background:var(--bg)}
+.tag-kritiek{display:inline-block;background:var(--red);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.15em .45em;border-radius:2px;font-family:var(--sans);vertical-align:middle}
+
+.demands{counter-reset:demands;list-style:none;padding:0}
+.demands li{counter-increment:demands;display:flex;gap:.75rem;margin-bottom:.85rem;padding:.75rem .85rem;background:var(--surface);border:1px solid var(--border);border-radius:4px}
+.demands li::before{content:counter(demands);display:flex;align-items:center;justify-content:center;min-width:1.6rem;height:1.6rem;background:var(--accent);color:#fff;border-radius:50%;font-size:.75rem;font-weight:700;flex-shrink:0;margin-top:.1rem}
+.demands li span{font-size:.88rem}
+.demands li strong{display:block;margin-bottom:.2rem;font-size:.9rem}
+
+.law-box{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.85rem 1rem;margin:1rem 0 1.5rem;font-size:.85rem}
+.law-box ul{margin:.35rem 0 0;padding-left:1.25rem}
+
+.sig{margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid var(--border);font-size:.88rem}
+.sig-line{margin-top:2.5rem;border-bottom:1px solid var(--text);width:12rem}
+
+.dateline{font-size:.9rem;margin-bottom:2rem;color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="alert no-print">
+    <strong>Werkdocument &mdash; gereed voor verzending na controle</strong>
+    Controleer de datum en de bijlagen voor verzending. Stuur aangetekend &eacute;n per e-mail met leesbevestiging.
+  </div>
+
+  <div class="addr-grid">
+    <div class="addr-block">
+      <p class="addr-label">Afzender</p>
+      <p><strong>I. Grothe</strong></p>
+      <p>Kampersingel 70 - 22</p>
+      <p>2012 DM Haarlem</p>
+      <p>isabelgrothe@live.nl</p>
+      <p>BSN: 215672185</p>
+      <p>Geboortedatum: 18 juni 1993</p>
+    </div>
+    <div class="addr-block">
+      <p class="addr-label">Geadresseerde</p>
+      <p><strong>Spaarne Gasthuis</strong></p>
+      <p>t.a.v. Functionaris Gegevensbescherming</p>
+      <p>Spaarnepoort 1</p>
+      <p>2134 TM Hoofddorp</p>
+      <p>privacy@spaarnegasthuis.nl</p>
+      <p><em>&eacute;n</em> aangetekend aan bovenstaand adres</p>
+    </div>
+  </div>
+
+  <p class="dateline">Haarlem, 27 juli 2026</p>
+
+  <div class="subject-block">
+    <div class="subject-label">Betreft</div>
+    <div class="subject-text">INGEBREKESTELLING &mdash; onrechtmatige vervanging medische samenvatting via XDS RPLC-mechanisme op 17 oktober 2024, AVG-inbreuk art. 5 lid 1 sub a/d, art. 15, art. 18 jo. WGBO art. 7:454</div>
+  </div>
+
+  <p>Geachte Functionaris Gegevensbescherming,</p>
+
+  <p>Ik schrijf u in mijn hoedanigheid van pati&euml;nt en betrokkene in de zin van de Algemene verordening gegevensbescherming (AVG) naar aanleiding van een ernstige onregelmatigheid die ik op <strong>17 oktober 2024</strong> zelf heb vastgesteld bij het downloaden van mijn medische dossier via het MijnSpaarnegasthuis-portaal (Epic MyChart). Op die dag heb ik binnen een tijdbestek van <strong>zeven minuten en negenendertig seconden</strong> twee versies van mijn Pati&euml;ntsamenvatting gedownload. De eerste versie was volledig; de tweede versie was vrijwel volledig leeggemaakt.</p>
+
+  <p>Nadere forensisch-technische analyse van de onderliggende brondocumenten &mdash; HL7 CDA R2 XML-bestanden en IHE XDS-metadatabestanden afkomstig uit de MedMij-download &mdash; toont aan dat dit geen systeemfout of weergavefout betreft, maar een <strong>doelbewuste, formele documentvervanging</strong> via het HL7 RPLC-mechanisme, uitgevoerd terwijl ik nog aantoonbaar actief was in het portaal.</p>
+
+  <p>Met deze brief stel ik u formeel in gebreke en verzoek ik u om de hierna genoemde maatregelen te treffen binnen de daarvoor gestelde termijn.</p>
+
+  <p><strong>1. Vastgestelde feiten &mdash; forensisch-technische bevindingen</strong></p>
+
+  <table class="exhibit-table">
+    <thead>
+      <tr>
+        <th>Bestand</th>
+        <th>Grootte</th>
+        <th>SHA-256 (eerste 16 tekens)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>60397a7e-DOC0001.XML<br><em>(Pati&euml;ntsamenvatting v1)</em></td>
+        <td>62.156 B</td>
+        <td>429a1857268db558&hellip;</td>
+        <td>Volledig</td>
+      </tr>
+      <tr>
+        <td>da96a6cf-DOC0001.XML<br><em>(Pati&euml;ntsamenvatting v2)</em></td>
+        <td>15.653 B</td>
+        <td>385af1d1ef91e972&hellip;</td>
+        <td><span class="tag-kritiek">RPLC</span> Vervangen</td>
+      </tr>
+      <tr>
+        <td>e90a038f-DOC0002.XML<br><em>(Contactsamenvatting v1)</em></td>
+        <td>67.550 B</td>
+        <td>bcf468ecdfec18a6&hellip;</td>
+        <td>Volledig</td>
+      </tr>
+      <tr>
+        <td>df1eb0d9-DOC0002.XML<br><em>(Contactsamenvatting v2)</em></td>
+        <td>186 B</td>
+        <td>5c30f5162e7d87b8&hellip;</td>
+        <td><span class="tag-kritiek">RPLC</span> Foutbericht</td>
+      </tr>
+      <tr>
+        <td>b96585bb-METADATA.XML<br><em>(1e XDS SubmissionSet)</em></td>
+        <td>13.725 B</td>
+        <td>a8a44e71712d6438&hellip;</td>
+        <td>14:19:33 CEST</td>
+      </tr>
+      <tr>
+        <td>1406c377-METADATA.XML<br><em>(2e XDS SubmissionSet)</em></td>
+        <td>13.558 B</td>
+        <td>d37af80d1347f038&hellip;</td>
+        <td>14:27:12 CEST</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Bevinding 1 &mdash; Formele RPLC-vervanging (KRITIEK)</strong><br>
+  Het document <code>da96a6cf-DOC0001.XML</code> bevat de volgende XDS-relatie:</p>
+  <p style="font-family:var(--mono);font-size:.82rem;background:var(--surface);border:1px solid var(--border);padding:.6rem .8rem;border-radius:3px;overflow-x:auto;white-space:pre">&lt;relatedDocument typeCode="RPLC"&gt;
+  &lt;parentDocument&gt;
+    &lt;id root="1.2.840.114350.1.13.201.2.7.8.688883.5616717"/&gt;
+    &lt;setId extension="00000000-1ff7-d5eb-1718-79ee0fb96b5a"/&gt;
+    &lt;versionNumber value="1"/&gt;
+  &lt;/parentDocument&gt;
+&lt;/relatedDocument&gt;</p>
+
+  <p><strong>Bevinding 2 &mdash; Tijdstempel: vervanging tijdens actieve portaalsessie (KRITIEK)</strong></p>
+  <ul>
+    <li><strong>14:19:33 CEST</strong> &mdash; 1e XDS SubmissionSet ingediend (62.156 B + 67.550 B)</li>
+    <li><strong>14:27:12 CEST</strong> &mdash; 2e XDS SubmissionSet ingediend (15.653 B + 186 B)</li>
+    <li><strong>Delta: 459 seconden = 7 minuten en 39 seconden</strong></li>
+  </ul>
+
+  <p><strong>Bevinding 3 &mdash; PID-velden gewist in 2e metadata (KRITIEK)</strong><br>
+  In <code>1406c377-METADATA.XML</code> zijn PID-3, PID-5, PID-7, PID-8, PID-11 en <code>authorInstitution</code> leeg.</p>
+
+  <p><strong>Bevinding 4 &mdash; Weggemaakte klinische secties (KRITIEK)</strong><br>
+  Versie 2 mist: Allergie&euml;n, Medicatie (DEXAMFETAMINE actief), Actieve problemen, Gesloten problemen, Pati&euml;ntcontacten, Sociale anamnese, Toekomstige afspraken.</p>
+
+  <p><strong>Bevinding 5 &mdash; DOC0002 vervangen door ongeldig foutbericht (KRITIEK)</strong><br>
+  67.550 bytes &rarr; 186 bytes: <em>&ldquo;Er was een probleem bij het genereren van het document voor uw bezoek op: 19891213.&rdquo;</em></p>
+
+  <p><strong>2. Juridische grondslag</strong></p>
+
+  <div class="law-box">
+    <ul>
+      <li><strong>AVG art. 5 lid 1 sub a</strong> &mdash; rechtmatigheid: vervanging zonder medeweten en zonder rechtsgrond</li>
+      <li><strong>AVG art. 5 lid 1 sub d</strong> &mdash; juistheid: de na de vervanging beschikbare versie is inhoudelijk onjuist en incompleet</li>
+      <li><strong>AVG art. 5 lid 2</strong> (accountability) &mdash; u dient de rechtmatigheid aan te tonen (ECJ C-340/21)</li>
+      <li><strong>AVG art. 15</strong> &mdash; recht van toegang: volledige en juiste inzage</li>
+      <li><strong>AVG art. 18</strong> &mdash; recht op beperking: geen verdere verwerking of verwijdering gedurende het onderzoek</li>
+      <li><strong>WGBO art. 7:454</strong> &mdash; dossierplicht: verwijdering of vervanging zonder wettelijke grondslag is strijdig</li>
+      <li><strong>WABVPZ art. 15a</strong> &mdash; portabiliteitsplicht: geleegde versie voldoet niet</li>
+      <li><strong>Sr art. 225 lid 1</strong> &mdash; valsheid in geschrifte: opzettelijke vervanging authentiek medisch document</li>
+    </ul>
+  </div>
+
+  <p><strong>3. Vorderingen</strong></p>
+  <p>Ik somme er u &mdash; om de volgende maatregelen te treffen <strong>binnen 14 kalenderdagen</strong> na dagtekening:</p>
+
+  <ol class="demands">
+    <li>
+      <span>
+        <strong>Identificatie van de indiener van de 2e XDS SubmissionSet</strong>
+        Mededeling welke medewerker, welk systeem of welk proces op 17-10-2024 om 14:27:12 CEST de tweede XDS SubmissionSet heeft ingediend, inclusief gebruikersnaam, IP-adres en systeemnaam.
+      </span>
+    </li>
+    <li>
+      <span>
+        <strong>Verstrekking van het Epic-systeemauditlog</strong>
+        Volledig Epic-systeemauditlog voor 14:15:00&ndash;14:35:00 CEST op 17-10-2024, betreffende BSN 215672185, inclusief alle RPLC-acties, XDS-indieningen en portaalactiviteiten.
+      </span>
+    </li>
+    <li>
+      <span>
+        <strong>Schriftelijke verklaring voor de RPLC-vervanging</strong>
+        Op welke wettelijke grondslag (AVG art. 6) heeft de vervanging plaatsgevonden en wie heeft daartoe opdracht gegeven?
+      </span>
+    </li>
+    <li>
+      <span>
+        <strong>Herstel van de volledige, juiste Pati&euml;ntsamenvatting</strong>
+        Herstel DOC0001 v1 (SHA-256: 429a1857&hellip;) als actuele versie in het XDS-register, dan wel stel een volledig equivalent beschikbaar via het MedMij-portaal.
+      </span>
+    </li>
+    <li>
+      <span>
+        <strong>Bewaringsplicht &mdash; geen verdere verwijdering of wijziging</strong>
+        Onmiddellijke bewaringsmaatregel voor beide XDS-versies, METADATA.XML-bestanden en het Epic-auditlog. Schriftelijke bevestiging dat de maatregel is getroffen.
+      </span>
+    </li>
+    <li>
+      <span>
+        <strong>Melding bij de Autoriteit Persoonsgegevens</strong>
+        Indien RPLC-vervanging kwalificeert als datalek (AVG art. 33): meldingsreferentie AP, dan wel schriftelijke verklaring waarom melding niet vereist is.
+      </span>
+    </li>
+  </ol>
+
+  <p><strong>4. Gevolgen bij niet-nakoming</strong></p>
+  <ul>
+    <li>Klacht bij de <strong>Autoriteit Persoonsgegevens</strong> (art. 77 AVG)</li>
+    <li>Klacht bij de <strong>Inspectie Gezondheidszorg en Jeugd (IGJ)</strong> wegens schending WGBO</li>
+    <li>Aangifte bij de <strong>politie</strong> wegens valsheid in geschrifte (Sr art. 225) en/of computervredebreuk (Sr art. 138ab)</li>
+    <li>Civiele vordering tot inzage en schadevergoeding (AVG art. 82)</li>
+    <li>Verstrekking forensische bevindingen aan de <strong>pers</strong> en de <strong>Tweede Kamer</strong> (commissie VWS)</li>
+  </ul>
+
+  <p>Ik verzoek u uitdrukkelijk alle communicatie schriftelijk te voeren en uitsluitend gericht aan mij persoonlijk.</p>
+  <p>Hoogachtend,</p>
+
+  <div class="sig">
+    <div class="sig-line"></div>
+    <p style="margin-top:.5rem"><strong>I. Grothe</strong><br>
+    Kampersingel 70 - 22, 2012 DM Haarlem<br>
+    isabelgrothe@live.nl | BSN 215672185</p>
+  </div>
+
+  <p style="margin-top:2.5rem"><strong>Bijlagen</strong></p>
+  <ol style="font-size:.88rem">
+    <li>60397a7e-DOC0001.XML &mdash; Pati&euml;ntsamenvatting v1 (SHA-256: 429a1857&hellip;)</li>
+    <li>da96a6cf-DOC0001.XML &mdash; Pati&euml;ntsamenvatting v2 (SHA-256: 385af1d1&hellip;) &mdash; RPLC</li>
+    <li>e90a038f-DOC0002.XML &mdash; Contactsamenvatting v1 (SHA-256: bcf468ec&hellip;)</li>
+    <li>df1eb0d9-DOC0002.XML &mdash; Contactsamenvatting v2 foutbericht (SHA-256: 5c30f516&hellip;)</li>
+    <li>b96585bb-METADATA.XML &mdash; 1e XDS SubmissionSet (14:19:33 CEST)</li>
+    <li>1406c377-METADATA.XML &mdash; 2e XDS SubmissionSet (14:27:12 CEST)</li>
+    <li>kopie_2.PDF &mdash; Volledige PDF-download 14:19 uur (SHA-256: 57414542&hellip;)</li>
+    <li>origineel.PDF &mdash; Geleegde PDF-download (SHA-256: 3263603c&hellip;)</li>
+    <li>Forensisch Rapport v3.0 &mdash; Formele CDA-documentvervanging Epic MyChart</li>
+  </ol>
+
+</div>
+</body>
+</html>
