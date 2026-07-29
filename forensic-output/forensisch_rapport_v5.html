@@ -171,7 +171,7 @@
   <div class="alert-icon-orange">&#9888;</div>
   <div class="alert-body-orange">
     <div class="alert-title-orange">Nieuw v5.0 &mdash; Secties K&ndash;Q: Diepteanalyse 47 YAML-captures (175.631 regels)</div>
-    Naast de negen J-bevindingen (v4.0) zijn 34 aanvullende bevindingen vastgesteld in secties K t/m Q: (K) Dijklander/ChipSoft HiX volledig dossier bevraagd via DigiD incl. Wilsverklaringen, Intoxicaties en Behandelbeperking; (L) <strong><code style="font-size:.78rem;color:var(--orange)">whatskebeurt123@outlook.com</code></strong> als primaire Microsoft-account op het apparaat &mdash; niet van pati&euml;nte; (M) medewerkergegevens <code style="font-size:.78rem;color:var(--orange)">caalders@spaarnegasthuis.nl</code> in publieke API; (N) live CSRF-token voor GetROIFormsAndTemplates + GetReleaseRecords vastgelegd; (O) F5 BIG-IP backend-IP <code style="font-size:.78rem;color:var(--orange)">12.150.250.130</code> + legacy <code style="font-size:.78rem;color:var(--orange)">ASPSESSIONIDAERBDDCR</code> op moderne .NET; (P) device UUID <code style="font-size:.78rem;color:var(--orange)">BFCE818F-42D3-4DD9-BFEC-144665FDEF21</code> in productie-headers; (Q) arts V. Jongkind &mdash; r&ouml;ntgenfoto&rsquo;s minderjarige (16j, 2009). <strong>Totaal v5: 53 bevindingen &mdash; 8 Kritiek, 27 Hoog, 13 Midden, 5 Info.</strong>
+    Naast de negen J-bevindingen (v4.0) zijn 34 aanvullende bevindingen vastgesteld in secties K t/m Q: (K) Dijklander/ChipSoft HiX volledig dossier bevraagd via DigiD incl. Wilsverklaringen, Intoxicaties en Behandelbeperking; (L) <strong><code style="font-size:.78rem;color:var(--orange)">whatskebeurt123@outlook.com</code></strong> als primaire Microsoft-account op het apparaat &mdash; niet van pati&euml;nte; (M) medewerkergegevens <code style="font-size:.78rem;color:var(--orange)">caalders@spaarnegasthuis.nl</code> in publieke API; (N) live CSRF-token voor GetROIFormsAndTemplates + GetReleaseRecords vastgelegd; (O) F5 BIG-IP backend-IP <code style="font-size:.78rem;color:var(--orange)">12.150.250.130</code> + legacy <code style="font-size:.78rem;color:var(--orange)">ASPSESSIONIDAERBDDCR</code> op moderne .NET; (P) device UUID <code style="font-size:.78rem;color:var(--orange)">BFCE818F-42D3-4DD9-BFEC-144665FDEF21</code> in productie-headers; (Q) arts V. Jongkind &mdash; r&ouml;ntgenfoto&rsquo;s minderjarige (16j, 2009). <strong>Totaal v5 (gecorrigeerd): 51 bevindingen &mdash; 7 Kritiek, 24 Hoog, 13 Midden, 7 Info.</strong> L-sectie gecorrigeerd: <code>whatskebeurt123@outlook.com</code> is bevestigd als eigen account pati&euml;nte.
   </div>
 </div>
 
@@ -1072,72 +1072,53 @@ Toestemmingen          (toestemmingen en weigeringen)</pre>
   </div>
 </section>
 
-<!-- ===================== SECTIE L — WHATS KEBEURT ===================== -->
+<!-- ===================== SECTIE L — MICROSOFT ACCOUNT BEVESTIGD ===================== -->
 <section>
-  <h2 class="section-new">Sectie L &mdash; Microsoft Account Anomalie: Onbekende Primaire Gebruiker op Apparaat (<code>whatskebeurt123@outlook.com</code>)</h2>
+  <h2 class="section-new">Sectie L &mdash; Microsoft Account op Apparaat: Bevestigd als Eigen Account Pati&euml;nte</h2>
   <p style="font-size:.82rem;color:var(--text2);margin-bottom:1.25rem">
-    Bron: <code>substrate.office.com.yaml</code> (map <code>nlhfd1</code>) &mdash; SHA-256: <code class="hash">2425f4e2f8c44e4a456df9c57bead336fb1d89da189c97b7476e7998d86ed6d3</code> &middot; tijdstip 19:43 CEST.
+    Bron: <code>substrate.office.com.yaml</code> (map <code>nlhfd1</code>) &mdash; SHA-256: <code class="hash">2425f4e2f8c44e4a456df9c57bead336fb1d89da189c97b7476e7998d86ed6d3</code> &middot; tijdstip 19:43 CEST. <strong>Gecorrigeerd:</strong> <code>whatskebeurt123@outlook.com</code> is bevestigd als het eigen Microsoft-account van pati&euml;nte I. Grothe. Er is geen identiteitsanomalie of bewaarketenkwestie.
   </p>
 
   <div class="finding-card fc-new">
     <div class="finding-header fh-new">
       <span class="finding-num">L-01</span>
-      <span class="finding-title">Primaire Microsoft-account op apparaat is <code>whatskebeurt123@outlook.com</code> (<code>displayName: Whats Kebeurt</code>) &mdash; NIET van pati&euml;nte</span>
-      <span class="badge badge-kritiek">Kritiek</span>
+      <span class="finding-title">Microsoft account <code>whatskebeurt123@outlook.com</code> (<code>displayName: Whats Kebeurt</code>) &mdash; bevestigd als eigen account pati&euml;nte &middot; apparaateigenaarschap vastgesteld</span>
+      <span class="badge badge-info">Info</span>
     </div>
     <div class="finding-body">
       <div class="finding-row">
         <span class="finding-label">Technisch</span>
         <span class="finding-value">
-          Microsoft Graph API-response vastgelegd in <code>substrate.office.com.yaml</code> (19:43 CEST, tijdens medische sessie):
+          Microsoft Graph API-response vastgelegd in <code>substrate.office.com.yaml</code> (19:43 CEST):
           <pre>userPrincipalName : whatskebeurt123@outlook.com
 displayName       : Whats Kebeurt
 accountType       : Consumer (primaire account)
 timestamp         : 28-07-2026 19:43 CEST</pre>
-          Bekende e-mail pati&euml;nte: <code>isabelgrothe@live.nl</code>. De primaire Microsoft-account op het apparaat behoort toe aan een onbekend persoon (<em>Whats Kebeurt</em>). Dit apparaat &mdash; waarop medische dossiers van Isabel Grothe zijn benaderd en Proxyman-captures zijn gemaakt &mdash; is primair geconfigureerd voor een andere gebruiker. De bewaarketen van het forensisch materiaal is hierdoor ernstig gecompromitteerd.
+          Pati&euml;nte heeft bevestigd dat <code>whatskebeurt123@outlook.com</code> haar eigen Microsoft-account is. De Proxyman-captures zijn gemaakt op haar eigen apparaat. De forensische bewaarketen is intact.
         </span>
       </div>
       <div class="finding-row">
         <span class="finding-label">Bron</span>
-        <span class="finding-value">SHA-256: <code class="hash">2425f4e2f8c44e4a456df9c57bead336fb1d89da189c97b7476e7998d86ed6d3</code> &middot; map: nlhfd1</span>
+        <span class="finding-value">SHA-256: <code class="hash">2425f4e2f8c44e4a456df9c57bead336fb1d89da189c97b7476e7998d86ed6d3</code></span>
       </div>
       <div class="finding-row">
         <span class="finding-label">Juridisch</span>
-        <span class="finding-value strong">AVG art. 5(1)(f) &middot; WGBO 7:454 (toegang derden) &middot; Forensische bewaarketen: de vraag wie het apparaat beheerde tijdens de medische sessie is nu forensisch open &mdash; dit kan zowel ontlastend als belastend zijn afhankelijk van de context</span>
+        <span class="finding-value">Informatief &mdash; bevestigt dat captures zijn gemaakt op het apparaat van pati&euml;nte. Bewaarketen forensisch materiaal intact.</span>
       </div>
-      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-info">Ondersteunend (bewaarketen bevestigd)</span></span></div>
     </div>
   </div>
 
   <div class="finding-card fc-new">
     <div class="finding-header fh-new">
       <span class="finding-num">L-02</span>
-      <span class="finding-title">Microsoft Graph toont <code>displayName: Whats Kebeurt</code> &mdash; accountnaam niet te relateren aan pati&euml;nte</span>
-      <span class="badge badge-hoog">Hoog</span>
+      <span class="finding-title">iCloud-activiteit <code>nlhfd1.icloud-content.com</code> om 19:43 CEST &mdash; eigen iCloud-account pati&euml;nte actief tijdens medische sessie</span>
+      <span class="badge badge-info">Info</span>
     </div>
     <div class="finding-body">
       <div class="finding-row">
         <span class="finding-label">Technisch</span>
-        <span class="finding-value">De <code>substrate.office.com</code> API-aanroep (Microsoft 365 telemetrie-endpoint) bevat de weergavenaam van de actieve gebruiker: <code>Whats Kebeurt</code>. Dit is de naam zoals ingesteld in de Microsoft-accountinstellingen van de primaire gebruiker. Tegelijkertijd lopen op hetzelfde apparaat medische dossieraanroepen voor Isabel Grothe (BSN 215672185). De combinatie van twee verschillende identiteiten op &eacute;&eacute;n apparaat in dezelfde tijdsperiode is forensisch significant.</span>
-      </div>
-      <div class="finding-row">
-        <span class="finding-label">Juridisch</span>
-        <span class="finding-value">AVG art. 5(1)(f) &middot; WGBO 7:454 &mdash; wie heeft feitelijk toegang gehad tot de medische dossiers?</span>
-      </div>
-      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
-    </div>
-  </div>
-
-  <div class="finding-card fc-new">
-    <div class="finding-header fh-new">
-      <span class="finding-num">L-03</span>
-      <span class="finding-title">iCloud-activiteit (<code>nlhfd1.icloud-content.com</code>) om 19:43 CEST &mdash; gelijktijdig met medische dossiertoegang</span>
-      <span class="badge badge-hoog">Hoog</span>
-    </div>
-    <div class="finding-body">
-      <div class="finding-row">
-        <span class="finding-label">Technisch</span>
-        <span class="finding-value">De map <code>nlhfd1</code> in het YAML-archief bevat captures van <code>substrate.office.com</code> en <code>outlook.office.com</code> tijdgestempeld 19:43. De mapnaam <code>nlhfd1</code> correspondeert met <code>nlhfd1.icloud-content.com</code> &mdash; een Apple iCloud-CDN-subdomain voor Nederlandse datahosting. iCloud-activiteit is actief om 19:43 CEST, precies tussen de Dijklander-sessie (19:38) en de PGO-sessie (19:54). De iCloud-account op het apparaat is niet gelinkt aan Isabel Grothe.</span>
+        <span class="finding-value">Map <code>nlhfd1</code> in het YAML-archief bevat captures van <code>substrate.office.com</code> en <code>outlook.office.com</code> op 19:43 CEST &mdash; eigen iCloud/Microsoft-activiteit van pati&euml;nte op de achtergrond tijdens de medische sessie. Dit is normaal achtergrondverkeer van het eigen apparaat. Bevestigt dat het apparaat actief in gebruik was door pati&euml;nte op 28-07-2026.</span>
       </div>
       <div class="finding-row">
         <span class="finding-label">Bron</span>
@@ -1145,28 +1126,9 @@ timestamp         : 28-07-2026 19:43 CEST</pre>
       </div>
       <div class="finding-row">
         <span class="finding-label">Juridisch</span>
-        <span class="finding-value">AVG art. 5(1)(f) &middot; Forensische bewaarketenintegriteit &mdash; onbekende account actief tijdens dossierinzage</span>
+        <span class="finding-value">Informatief &mdash; bevestigt apparaatgebruik door pati&euml;nte. Geen juridische implicaties.</span>
       </div>
-      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
-    </div>
-  </div>
-
-  <div class="finding-card fc-new">
-    <div class="finding-header fh-new">
-      <span class="finding-num">L-04</span>
-      <span class="finding-title">Forensische bewaarketenkwestie &mdash; onbekend persoon als apparaateigenaar tijdens medische dossierinzage</span>
-      <span class="badge badge-hoog">Hoog</span>
-    </div>
-    <div class="finding-body">
-      <div class="finding-row">
-        <span class="finding-label">Technisch</span>
-        <span class="finding-value">Combinatie van bevindingen L-01, L-02, L-03: het apparaat waarop de Proxyman-captures zijn gemaakt en waarop medische dossiers van Isabel Grothe zijn benaderd, heeft als primaire Microsoft-account <code>whatskebeurt123@outlook.com</code> (displayName: Whats Kebeurt). Technisch zijn er twee scenario&rsquo;s: (a) Isabel Grothe gebruikte het apparaat van iemand anders met diens account als primair actief; (b) iemand anders had op dat moment toegang tot het apparaat. In beide gevallen is de forensische bewaarketen van de Proxyman-captures gecompromitteerd: de captures zijn niet eenduidig toe te schrijven aan een door de pati&euml;nte gecontroleerde omgeving.</span>
-      </div>
-      <div class="finding-row">
-        <span class="finding-label">Juridisch</span>
-        <span class="finding-value strong">WGBO 7:454 (toegang derden tot medisch dossier) &middot; AVG art. 5(1)(f) &middot; Bewaarketenintegriteit forensisch materiaal &mdash; aanbeveling: verklaring omtrent eigendom en gebruik van het apparaat op 28-07-2026</span>
-      </div>
-      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-info">Ondersteunend</span></span></div>
     </div>
   </div>
 </section>
@@ -1720,10 +1682,8 @@ EncryptedCctId          : WP-24Iv5tdENPYgb94MrRleiyyg-3D-3D-24RRTwX7-2F
         <tr class="sr-middel sr-new"><td>K-06</td><td>Dijklander sessiecookies zonder <code>Max-Age</code> of <code>Expires</code></td><td><span class="badge badge-midden">Midden</span></td><td>NEN 7510 &sect;9.4 &middot; AVG 5(1)(f)</td><td>Middel</td></tr>
         <tr class="sr-info sr-new"><td>K-07</td><td>Dijklander MedMij SUCCESS vs. Spaarne PARTIAL_SUCCESS &mdash; anomalie is Spaarne-specifiek</td><td><span class="badge badge-info">Info</span></td><td>Corroborerend B-J04 &middot; WABVPZ 15a</td><td>Corroborerend</td></tr>
         <!-- SECTIE L -->
-        <tr class="sr-kritiek sr-new"><td>L-01</td><td>Primaire Microsoft account <code>whatskebeurt123@outlook.com</code> op apparaat &mdash; NIET van pati&euml;nte</td><td><span class="badge badge-kritiek">Kritiek</span></td><td>AVG 5(1)(f) &middot; WGBO 7:454</td><td>Hoog</td></tr>
-        <tr class="sr-hoog sr-new"><td>L-02</td><td>Microsoft Graph: <code>displayName: Whats Kebeurt</code> &mdash; onbekend persoon als primaire gebruiker</td><td><span class="badge badge-hoog">Hoog</span></td><td>AVG 5(1)(f) &middot; WGBO 7:454</td><td>Hoog</td></tr>
-        <tr class="sr-hoog sr-new"><td>L-03</td><td>iCloud-activiteit <code>nlhfd1.icloud-content.com</code> 19:43 &mdash; gelijktijdig met medische sessie</td><td><span class="badge badge-hoog">Hoog</span></td><td>AVG 5(1)(f) &middot; Bewaarketenintegriteit</td><td>Hoog</td></tr>
-        <tr class="sr-hoog sr-new"><td>L-04</td><td>Forensische bewaarketen gecompromitteerd &mdash; onbekend persoon als apparaateigenaar</td><td><span class="badge badge-hoog">Hoog</span></td><td>WGBO 7:454 &middot; AVG 5(1)(f)</td><td>Hoog</td></tr>
+        <tr class="sr-info sr-new"><td>L-01</td><td><code>whatskebeurt123@outlook.com</code> bevestigd als eigen account pati&euml;nte &mdash; bewaarketen intact</td><td><span class="badge badge-info">Info</span></td><td>Informatief &mdash; bewaarketen bevestigd</td><td>Ondersteunend</td></tr>
+        <tr class="sr-info sr-new"><td>L-02</td><td>iCloud-activiteit 19:43 &mdash; eigen apparaat pati&euml;nte bevestigd</td><td><span class="badge badge-info">Info</span></td><td>Informatief</td><td>Ondersteunend</td></tr>
         <!-- SECTIE M -->
         <tr class="sr-hoog sr-new"><td>M-01</td><td><code>caalders@spaarnegasthuis.nl</code> als SharePoint federated identity in pati&euml;nt-API</td><td><span class="badge badge-hoog">Hoog</span></td><td>AVG 5(1)(f) &middot; AVG 88</td><td>Hoog</td></tr>
         <tr class="sr-middel sr-new"><td>M-02</td><td>Azure AD-tenant <code>spaarnegh.onmicrosoft.com</code> onthult interne Microsoft 365-structuur</td><td><span class="badge badge-midden">Midden</span></td><td>AVG 5(1)(f) &middot; NEN 7510 &sect;12.6</td><td>Middel</td></tr>
@@ -1756,7 +1716,7 @@ EncryptedCctId          : WP-24Iv5tdENPYgb94MrRleiyyg-3D-3D-24RRTwX7-2F
     </table>
   </div>
   <p style="font-size:.78rem;color:var(--text3);margin-top:.75rem">
-    <span class="badge badge-ok" style="font-size:.65rem">Nieuw v5</span> = bevindingen K-01 t/m Q-01 toegevoegd op basis van diepteanalyse 47 YAML-bestanden (175.631 regels). Totaal: <strong>8&times; Kritiek &middot; 27&times; Hoog &middot; 13&times; Midden &middot; 5&times; Info (53 bevindingen)</strong>.
+    <span class="badge badge-ok" style="font-size:.65rem">Nieuw v5</span> = bevindingen K-01 t/m Q-01 toegevoegd op basis van diepteanalyse 47 YAML-bestanden (175.631 regels). L-01/L-02 gecorrigeerd naar Info (eigen account pati&euml;nte bevestigd). Totaal: <strong>7&times; Kritiek &middot; 24&times; Hoog &middot; 13&times; Midden &middot; 7&times; Info (51 bevindingen)</strong>.
   </p>
 </section>
 
@@ -1793,10 +1753,6 @@ EncryptedCctId          : WP-24Iv5tdENPYgb94MrRleiyyg-3D-3D-24RRTwX7-2F
       <h3 style="font-size:.88rem;margin-bottom:.4rem">Melding CIBG / MedMij Stelsel</h3>
       <p style="font-size:.82rem;color:var(--text2);margin:0">PARTIAL_SUCCESS op MedMij FHIR-endpoint (gegevensdienstId=51) per 11-01-2026. Spaarne Gasthuis MedMij-certificering vereist volledige gegevensoverdracht. Dijklander SUCCESS toont dat het MedMij-stelsel functioneert.</p>
     </div>
-    <div style="margin-bottom:1.25rem">
-      <h3 style="font-size:.88rem;margin-bottom:.4rem">Bewaarketenverklaring (nieuw v5.0 &mdash; prioritair)</h3>
-      <p style="font-size:.82rem;color:var(--text2);margin:0">Sectie L toont dat het apparaat waarop de Proxyman-captures zijn gemaakt een primaire Microsoft-account heeft van een onbekend persoon (<code>whatskebeurt123@outlook.com</code>). Voor de forensische procedure is een schriftelijke verklaring omtrent het eigendom en gebruik van het apparaat op 28-07-2026 noodzakelijk, inclusief de verhouding tot <code>whatskebeurt123@outlook.com</code>. Zonder deze verklaring kan de bewijswaarde van de captures door een verwerende partij worden aangevochten.</p>
-    </div>
     <div>
       <h3 style="font-size:.88rem;margin-bottom:.4rem">Beveiligingsmelding NCSC / Spaarne Gasthuis CISO (nieuw v5.0)</h3>
       <p style="font-size:.82rem;color:var(--text2);margin:0">De combinatie van N-03/N-04 (CSRF-token + JWT in netwerkcapture) en B-J01 (148-daag JWT) vormt een volledig authenticatiepakket voor ongeautoriseerde dossieronttrekking. Dit valt onder de meldplicht datalekken AVG art. 33. Aanbeveling: directe revocatie van het JWT <code>jti: 26fed6cb-18b9-4a76-8f8d-a0a3fb253bfd</code> en invalidatie van alle <code>releaseId</code>-parameters ouder dan 24 uur.</p>
@@ -1805,7 +1761,7 @@ EncryptedCctId          : WP-24Iv5tdENPYgb94MrRleiyyg-3D-3D-24RRTwX7-2F
 </section>
 
 <footer>
-  Rapport v5.0 &mdash; 29 juli 2026. <strong>53 bevindingen: 8&times; Kritiek &middot; 27&times; Hoog &middot; 13&times; Midden &middot; 5&times; Info</strong>. Alle SHA-1-hashes van XDS-documenten geverifieerd. Alle bronbestanden behandeld als read-only. YAML-archief SHA-256: a9704c72d04d3fb23be2db354932fd38f0091a8a23d235cfa8c14b70e5336c5a (47 bestanden, 175.631 regels). Dit rapport is bewijsmateriaal &mdash; niet ter vervanging van juridisch advies.
+  Rapport v5.0 &mdash; 29 juli 2026 (gecorrigeerd: L-01/L-02 herclassificeerd). <strong>51 bevindingen: 7&times; Kritiek &middot; 24&times; Hoog &middot; 13&times; Midden &middot; 7&times; Info</strong>. Alle SHA-1-hashes van XDS-documenten geverifieerd. Alle bronbestanden behandeld als read-only. YAML-archief SHA-256: a9704c72d04d3fb23be2db354932fd38f0091a8a23d235cfa8c14b70e5336c5a (47 bestanden, 175.631 regels). Dit rapport is bewijsmateriaal &mdash; niet ter vervanging van juridisch advies.
 </footer>
 
 </div>
