@@ -1,2 +1,7 @@
-forensic/__pycache__/
+__pycache__/
+*.pyc
 extracted_docs/
+GESPREK_EXPORT_*.md
+reports/
+.claude/worktrees/
+.claude/settings.local.json

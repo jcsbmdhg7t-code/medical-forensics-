@@ -72,6 +72,12 @@
   .tag-AUTH     { background: #1a0e2e; color: #a78bfa; border: 1px solid #5b21b6; }
   .tag-TESTENV  { background: #7c2d12; color: #fed7aa; }
   .tag-COMM     { background: #0f2a1e; color: #6ee7b7; }
+  .tag-FORENSISCH { background: #cc0000; color: #fff; animation: fpulse 1.4s infinite; }
+  @keyframes fpulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+  .trow.has-forensisch { border-left: 3px solid #cc0000; }
+  .f-hit { font-size:11px; padding:3px 7px; border-radius:3px; background:#3b0a0a; color:#fca5a5; border:1px solid #b91c1c; margin:2px; display:inline-block; }
+  .f-ctx { font-size:11px; color:#94a3b8; font-family:monospace; white-space:pre-wrap; word-break:break-all; }
+  .chip.active.c-forensisch { background: #3b0a0a; color: #fca5a5; border-color: #cc0000; }
   .tag-OVERIG   { background: #1e293b; color: #64748b; }
 
   .m { font-weight: 700; }
@@ -118,6 +124,7 @@
   <button class="btn btn-secondary" onclick="exportCSV()">💾 CSV</button>
   <button class="btn btn-secondary" onclick="exportJSON()">📋 JSON</button>
   <button class="btn btn-secondary" onclick="doClear()">✕ Wis</button>
+  <button class="btn btn-secondary" id="btnAll" onclick="toggleAll()" style="display:none;">👁 Toon alles</button>
   <div class="filters">
     <button class="chip active"          data-f="ALL"       onclick="setF('ALL',this)">Alles</button>
     <button class="chip c-tracker"       data-f="TRACKER"   onclick="setF('TRACKER',this)">🚨 Tracker</button>
@@ -129,6 +136,7 @@
     <button class="chip"                 data-f="GGZ"       onclick="setF('GGZ',this)">🧠 GGZ</button>
     <button class="chip"                 data-f="AUTH"      onclick="setF('AUTH',this)">🔑 Auth</button>
     <button class="chip"                 data-f="TESTENV"   onclick="setF('TESTENV',this)">⚠️ Test-omgeving</button>
+    <button class="chip c-forensisch"    data-f="FORENSISCH" onclick="setF('FORENSISCH',this)">🔴 Forensisch</button>
   </div>
 </div>
 
@@ -140,7 +148,9 @@
   <div class="stat purple"><div class="n" id="s4">0</div><div class="l">Infra/Auth</div></div>
   <div class="stat yellow"><div class="n" id="s5">0</div><div class="l">Verzekeraar</div></div>
   <div class="stat orange"><div class="n" id="s6">0</div><div class="l">Test-omgeving</div></div>
-  <div class="stat">       <div class="n" id="s7">0</div><div class="l">Totaal</div></div>
+  <div class="stat">       <div class="n" id="s7">0</div><div class="l">Dossier</div></div>
+  <div class="stat red">   <div class="n" id="sf">0</div><div class="l">🔴 Forensisch</div></div>
+  <div class="stat">       <div class="n" id="s9">0</div><div class="l">Geladen totaal</div></div>
   <div class="stat">       <div class="n" id="s8">0</div><div class="l">Zichtbaar</div></div>
 </div>
 
@@ -235,6 +245,80 @@ const UI_KEYWORDS = [
   'max-height:0','areResultsFullyLoaded":false','lg-hide',
 ];
 
+// ============================================================
+// FORENSISCHE PATRONEN — NB-register (NB-01 t/m NB-179+)
+// ============================================================
+const FORENSISCH_PATRONEN = [
+  { re: /F19\.1|neusdruppelmisbruik/i,            label: 'NB-01 F19.1 neusdruppelmisbruik (gefabriceerde diagnose)', ernst: 'KRITIEK' },
+  { re: /361055000/,                              label: 'NB-03 SNOMED 361055000 alcoholmisbruik', ernst: 'KRITIEK' },
+  { re: /228273003/,                              label: 'NB-23 SNOMED 228273003 drugsgebruik', ernst: 'KRITIEK' },
+  { re: /228366006/,                              label: 'NB-23b SNOMED 228366006 stimulantmisbruik', ernst: 'KRITIEK' },
+  { re: /266927001/,                              label: 'NB-23c SNOMED 266927001 afhankelijkheid', ernst: 'KRITIEK' },
+  { re: /F60\.31|borderline/i,                   label: 'NB-xx F60.31 borderline persoonlijkheidsstoornis', ernst: 'KRITIEK' },
+  { re: /extension="373282512"/i,                 label: 'NB-05 al-Mousawi extension 373282512', ernst: 'KRITIEK' },
+  { re: /extension="51504662"|extension="84107660"/i, label: 'NB-04 N.M. Nota extension', ernst: 'KRITIEK' },
+  { re: /extension="999999"/i,                    label: 'NB-18 Epic ext=999999 anonieme auteur', ernst: 'KRITIEK' },
+  { re: /nullFlavor="UNK"/i,                      label: 'NB-18 CDA nullFlavor=UNK (anonieme auteur)', ernst: 'HOOG' },
+  { re: /Epic@spaarnegasthuis\.nl/i,              label: 'NB-05 Epic admin email in response', ernst: 'KRITIEK' },
+  { re: /DISABLEMYCONDITIONS/i,                   label: 'NB-11 Feature flag DISABLEMYCONDITIONS', ernst: 'KRITIEK' },
+  { re: /DISABLEPLANOFCARE/i,                     label: 'NB-11 Feature flag DISABLEPLANOFCARE', ernst: 'KRITIEK' },
+  { re: /SUBSTANCEHXQNR/i,                        label: 'NB-108 SUBSTANCEHXQNR module', ernst: 'KRITIEK' },
+  { re: /SEXUALACTIVITYHXQNR/i,                   label: 'NB-xx SEXUALACTIVITYHXQNR module', ernst: 'HOOG' },
+  { re: /AUTOGENERATESIGNATURE/i,                 label: 'NB-82 AUTOGENERATESIGNATURE', ernst: 'HOOG' },
+  { re: /USERAUDITTRAIL|MYCHARTAUDITTRAIL/i,      label: 'NB-163 Audit trail feature flag', ernst: 'KRITIEK' },
+  { re: /recording_capture_keystrokes\s*=\s*true/i, label: 'NB-53 Hotjar keystroke capture ACTIEF', ernst: 'KRITIEK' },
+  { re: /hotjar\.com|hjid=/i,                     label: 'NB-79 Hotjar tracker in response', ernst: 'HOOG' },
+  { re: /hoppinger\.com/,                         label: 'NB-114 Hoppinger supply-chain tracker', ernst: 'HOOG' },
+  { re: /spaarne-rebuild\.productie\.hoppinger/i, label: 'NB-114 Hoppinger rebuild productie', ernst: 'KRITIEK' },
+  { re: /sentry\.io/i,                            label: 'NB-69 Sentry.io telemetrie', ernst: 'HOOG' },
+  { re: /datadog.*browser-intake|browser-intake.*datadoghq/i, label: 'NB-69 Datadog RUM telemetrie', ernst: 'HOOG' },
+  { re: /account_id\s*[:=]\s*763232/i,            label: 'NB-53 VWO tracker account_id=763232', ernst: 'KRITIEK' },
+  { re: /hide_element.*opacity.*0|body.*opacity.*0.*important/i, label: 'NB-53 VWO body opacity:0 aanval', ernst: 'KRITIEK' },
+  { re: /vwo_uuid/i,                              label: 'NB-178 VWO tracking na weigering', ernst: 'HOOG' },
+  { re: /\.hiddenProvider\s*\{[^}]*display\s*:\s*none/i, label: 'NB-12 CSS .hiddenProvider display:none', ernst: 'KRITIEK' },
+  { re: /CEDataExternal\s*\{[^}]*display\s*:\s*none/i,   label: 'NB-12 CSS CEDataExternal display:none', ernst: 'KRITIEK' },
+  { re: /\.SRonly\s*\{[^}]*left\s*:\s*-\d{4,}px/i,      label: 'NB-12 CSS SRonly off-screen', ernst: 'KRITIEK' },
+  { re: /display\s*:\s*none\s*!important/i,       label: 'NB-12 CSS display:none !important', ernst: 'HOOG' },
+  { re: /font-size\s*:\s*0(px)?[;\s]/i,           label: 'NB-12 CSS font-size:0 (tekst onzichtbaar)', ernst: 'HOOG' },
+  { re: /override\.css/i,                         label: 'NB-53/89 override.css patiëntenrechten stylesheet', ernst: 'HOOG' },
+  { re: /lucy\.css|lucy_colors/i,                 label: 'NB-71 lucy.css XDM renderingslaag', ernst: 'HOOG' },
+  { re: /printBlackText/i,                        label: 'NB-84 printBlackText alarmkleuren geneutraliseerd', ernst: 'HOOG' },
+  { re: /noView\s*:\s*true/i,                     label: 'NB-99 noView:true — data aanwezig maar onderdrukt', ernst: 'KRITIEK' },
+  { re: /\bGUARD\b/,                              label: 'NB-56 GUARD blok — CDA toegangscontrole actief', ernst: 'HOOG' },
+  { re: /HANDMATIGE_EDIT_BOM/i,                   label: 'NB-13 Bytemanipulatieflag', ernst: 'KRITIEK' },
+  { re: /20260110033455/,                         label: 'NB-166 NACHT-TIMESTAMP (10-01-2026 03:34:55 AVG-dag)', ernst: 'KRITIEK' },
+  { re: /215672185/,                              label: 'BSN Grothe in response body', ernst: 'MEDIUM' },
+  { re: /0133033170/,                             label: 'MDN Grothe in response body', ernst: 'MEDIUM' },
+  { re: /DE36B70A/i,                              label: 'NB-69 Sentry device ID DE36B70A', ernst: 'HOOG' },
+  { re: /ChipSoft\.PlatformServices/i,            label: 'NB-177 KRITIEK ChipSoft HiX API blootgesteld', ernst: 'KRITIEK' },
+  { re: /GetCurrentPatientAndUserObject/i,         label: 'NB-177 KRITIEK ChipSoft patientobject gelekt', ernst: 'KRITIEK' },
+  { re: /2001702222/,                             label: 'NB-177 ChipSoft patient-ID Grothe', ernst: 'KRITIEK' },
+  { re: /DYN_CURRENT_USER/i,                      label: 'NB-177 ChipSoft sessietoken type', ernst: 'HOOG' },
+  { re: /GetPatientDocuments/i,                   label: 'NB-177 ChipSoft GetPatientDocuments API', ernst: 'HOOG' },
+  { re: /GetDcrRegistrations/i,                   label: 'NB-177 ChipSoft toestemmingen API', ernst: 'HOOG' },
+  { re: /DigiDClusterHybrid/i,                    label: 'NB-177 ChipSoft DigiD authenticatieflow', ernst: 'HOOG' },
+  { re: /centramed\.nl/i,                         label: 'NB-179 Centramed aansprakelijkheidsverzekeraar', ernst: 'HOOG' },
+  { re: /FocusZorgTeam.*test\.authorization/i,    label: 'NB-91 FocusZorgTeam test-server in productie', ernst: 'KRITIEK' },
+  { re: /transactie.{0,10}77832/i,               label: 'NB-23 Transactie-ID 77832 SNOMED SUCCESS', ernst: 'KRITIEK' },
+  { re: /\$lastn/i,                               label: 'NB-109 FHIR $lastn re-replay', ernst: 'HOOG' },
+  { re: /Brijder|Parnassia.*Indigo|Indigo.*Parnassia/i, label: 'NB-113 Parnassia/Brijder — nooit in behandeling', ernst: 'KRITIEK' },
+  { re: /WoundListSection/i,                      label: 'NB-12 CSS WoundListSection aanwezig', ernst: 'MEDIUM' },
+];
+
+function scanForensisch(text) {
+  if (!text || text.length < 4) return [];
+  const hits = [];
+  for (const pat of FORENSISCH_PATRONEN) {
+    const m = pat.re.exec(text);
+    if (m) {
+      const idx = m.index;
+      const ctx = text.substring(Math.max(0, idx - 60), idx + 100).replace(/[\n\r\t]/g, ' ').trim();
+      hits.push({ label: pat.label, ernst: pat.ernst, ctx });
+    }
+  }
+  return hits;
+}
+
 const JMAP = {
   TRACKER:    'AVG Art. 6/9 — tracking zonder toestemming op medisch portaal (GDPR schending)',
   FHIR:       'WGBO Art. 7:454 / AVG Art. 15 — inzage medische data / dataintegriteit FHIR',
@@ -253,11 +337,12 @@ const JMAP = {
 // ============================================================
 // STATE
 // ============================================================
-let allRaw = [];    // alle entries (ook ongefilterd)
-let relevant = [];  // enkel gefilterde entries
+let allRaw = [];
+let relevant = [];
 let activeF = 'ALL';
-let selDomain = null;
-let customDoms = [];
+let selDom = null;
+const customDomList = [];
+let showAll = false;
 
 // ============================================================
 // CATEGORISATIE
@@ -283,7 +368,7 @@ function categorise(entry) {
   for (const cat of ['ZIEKENHUIS','GGZ','HUISARTS','PGO','VERZEKER','COMM','INFRA','AUTH']) {
     if (DOM[cat].some(d => h.includes(d))) return cat;
   }
-  if (customDoms.some(d => h.includes(d))) return 'PRIMAIR';
+  if (customDomList.some(d => h.includes(d))) return 'PRIMAIR';
   return null;
 }
 
@@ -291,12 +376,18 @@ function categorise(entry) {
 // FILE LOADING — HAR/JSON
 // ============================================================
 function ingestEntries(entries, filename) {
-  const withMeta = entries.map((e, i) => ({
-    ...e,
-    _cat: categorise(e),
-    _id: allRaw.length + i,
-    _file: filename,
-  }));
+  const withMeta = entries.map((e, i) => {
+    const respBody = e.response?.content?.text || e.response?.body || '';
+    const reqBody  = e.request?.postData?.text || e.request?.body || '';
+    const fhits = scanForensisch(respBody + ' ' + reqBody);
+    return {
+      ...e,
+      _cat: categorise(e),
+      _id: allRaw.length + i,
+      _file: filename,
+      _forensisch: fhits,
+    };
+  });
   allRaw = allRaw.concat(withMeta);
   relevant = relevant.concat(withMeta.filter(e => e._cat));
   updateStats();
@@ -318,6 +409,7 @@ function loadHAR(file) {
 
 document.getElementById('fi').addEventListener('change', e => {
   Array.from(e.target.files).forEach(loadHAR);
+  e.target.value = '';
 });
 
 // ============================================================
@@ -446,27 +538,57 @@ function setF(cat, el) {
   render();
 }
 
-function visible() {
+
+function toggleAll() {
+  showAll = !showAll;
+  const btn = document.getElementById('btnAll');
+  btn.textContent = showAll ? '🔍 Alleen dossier' : '👁 Toon alles';
+  btn.style.background = showAll ? '#1e3a5f' : '';
+  render();
+}
+
+function visibleList() {
+  const source = (showAll || activeF === 'FORENSISCH') ? allRaw : relevant;
   const q = document.getElementById('sq').value.toLowerCase();
-  return relevant.filter(e => {
-    const cm = activeF === 'ALL' || e._cat === activeF;
+  return source.filter(e => {
+    let cm;
+    if (activeF === 'FORENSISCH') {
+      cm = e._forensisch && e._forensisch.length > 0;
+    } else {
+      cm = activeF === 'ALL' || e._cat === activeF || (showAll && !e._cat && activeF === 'ALL');
+    }
     const u = (e.request?.url || e.url || '').toLowerCase();
-    const qm = !q || u.includes(q) || (e._cat||'').toLowerCase().includes(q) ||
-      String(e.response?.status||'').includes(q) || (e.request?.method||'').toLowerCase().includes(q);
+    const fLabels = (e._forensisch||[]).map(f => f.label).join(' ').toLowerCase();
+    const qm = !q || u.includes(q) || (e._cat||'overig').toLowerCase().includes(q) ||
+      String(e.response?.status||'').includes(q) || (e.request?.method||'').toLowerCase().includes(q) ||
+      fLabels.includes(q);
     return cm && qm;
   });
 }
 
 function render() {
-  const vis = visible();
+  const vis = visibleList();
   document.getElementById('s8').textContent = vis.length;
   const cont = document.getElementById('results');
+  const btn = document.getElementById('btnAll');
 
-  if (!relevant.length) {
+  if (!allRaw.length) {
+    btn.style.display = 'none';
     cont.innerHTML = `<div class="empty"><div class="ico">📡</div>
       <h2>Sleep een bestand hiernaartoe</h2>
       <p><strong>HAR:</strong> Proxyman → requests → rechtermuisknop → Export as HAR<br>
       <strong>ZIP:</strong> sleep je <code>.zip</code> of <code>.proxymanlogv2</code> direct</p></div>`;
+    return;
+  }
+
+  btn.style.display = 'inline-block';
+
+  if (!relevant.length && !showAll) {
+    cont.innerHTML = `<div class="empty"><div class="ico">🔎</div>
+      <h2>${allRaw.length} requests geladen — 0 dossier-domeinen gevonden</h2>
+      <p>De geladen bestanden bevatten geen van de 45 bekende domeinen.<br>
+      Klik <strong>👁 Toon alles</strong> om alle requests te zien,<br>
+      of <strong>🌐 Ontdek domeinen</strong> om nieuwe domeinen toe te voegen aan de filter.</p></div>`;
     return;
   }
   if (!vis.length) {
@@ -491,9 +613,12 @@ function render() {
     const st = e.response?.status || '-';
     const sc = st >= 200 && st < 300 ? 's-ok' : st >= 400 ? 's-err' : 's-redir';
     const cat = e._cat || 'OVERIG';
+    const fhits = e._forensisch || [];
+    const fClass = fhits.length > 0 ? ' has-forensisch' : '';
+    const fBadge = fhits.length > 0 ? ` <span class="tag tag-FORENSISCH" title="${fhits.map(f=>f.label).join('\n')}">⚠ ${fhits.length}</span>` : '';
 
-    h += `<div class="trow" onclick="toggleD(${e._id})">
-      <div class="tcell"><span class="tag tag-${cat}">${cat}</span></div>
+    h += `<div class="trow${fClass}" onclick="toggleD(${e._id})">
+      <div class="tcell"><span class="tag tag-${cat}">${cat}</span>${fBadge}</div>
       <div class="tcell"><span class="m m-${m}">${m}</span></div>
       <div class="tcell hm" title="${hn}">${hn}</div>
       <div class="tcell" title="${url}">${esc(path)}</div>
@@ -512,10 +637,25 @@ function buildDetail(e) {
   const rb = (e.request?.postData?.text || e.request?.body || '').substring(0,800);
   const respb = (e.response?.content?.text || e.response?.body || '').substring(0,1500) || '(leeg)';
   const cat = e._cat || 'OVERIG';
+  const fhits = e._forensisch || [];
 
   const uiHits = UI_KEYWORDS.filter(k => (e.response?.content?.text||'').toLowerCase().includes(k.toLowerCase()));
 
+  const forensischBlock = fhits.length > 0 ? `
+    <div class="ds" style="grid-column:1/-1">
+      <h3 style="color:#fca5a5;">🔴 FORENSISCHE BEVINDINGEN (${fhits.length})</h3>
+      <div style="margin-top:6px;">
+        ${fhits.map(f => `
+          <div style="margin-bottom:8px;padding:8px;background:#1a0a0a;border:1px solid #b91c1c;border-radius:5px;">
+            <span class="f-hit">${esc(f.ernst)}</span>
+            <span style="font-size:12px;color:#fca5a5;margin-left:6px;font-weight:700;">${esc(f.label)}</span>
+            ${f.ctx ? `<div class="f-ctx" style="margin-top:5px;color:#94a3b8;">…${esc(f.ctx)}…</div>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
   return `<div class="dg">
+    ${forensischBlock}
     <div class="ds"><h3>Request</h3>
       <pre>${esc(url)}\n\n${esc(fmtH(e.request?.headers))}${rb ? '\n\n' + esc(rb) : ''}</pre></div>
     <div class="ds"><h3>Response headers</h3>
@@ -554,15 +694,14 @@ function updateStats() {
   document.getElementById('s5').textContent = c('VERZEKER');
   document.getElementById('s6').textContent = c('TESTENV');
   document.getElementById('s7').textContent = relevant.length;
-  document.getElementById('s8').textContent = visible().length;
+  document.getElementById('sf').textContent = allRaw.filter(e => e._forensisch && e._forensisch.length > 0).length;
+  document.getElementById('s9').textContent = allRaw.length;
+  document.getElementById('s8').textContent = visibleList().length;
 }
 
 // ============================================================
 // DOMAIN DISCOVERY
 // ============================================================
-let selDom = null;
-const customDomList = [];
-
 function allKnown() {
   return Object.values(DOM).flat().concat(customDomList);
 }
@@ -617,7 +756,7 @@ function addCustom() {
 // EXPORT
 // ============================================================
 function exportCSV() {
-  const rows = visible();
+  const rows = visibleList();
   if (!rows.length) return alert('Geen rijen.');
   const hdr = ['Categorie','Methode','URL','Status','Juridische_Grondslag','Bestand','Tijdstip'];
   const lines = [hdr.join(';')].concat(rows.map(e => [
@@ -630,7 +769,7 @@ function exportCSV() {
 }
 
 function exportJSON() {
-  const rows = visible();
+  const rows = visibleList();
   if (!rows.length) return alert('Geen rijen.');
   dl('proxyman_dossier_filter.json', JSON.stringify(rows.map(e=>({
     categorie:e._cat, url:e.request?.url||e.url, methode:e.request?.method,
@@ -646,7 +785,9 @@ function dl(name, content, mime) {
 }
 
 function doClear() {
-  allRaw = []; relevant = []; selDom = null;
+  allRaw = []; relevant = []; selDom = null; showAll = false;
+  const btn = document.getElementById('btnAll');
+  if (btn) { btn.textContent = '👁 Toon alles'; btn.style.background = ''; }
   updateStats(); render(); renderDisc();
 }
 

@@ -232,6 +232,168 @@ def decode_body(body_raw, encoding=""):
         return body_raw.decode("utf-8", errors="replace")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA-EXTRACTOR — trekt daadwerkelijke inhoud eruit, niet alleen detectie
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DataExtractor:
+    """Extraheert volledige verborgen/gemanipuleerde inhoud per HTTP-transactie."""
+
+    _CSS_BLOK = re.compile(
+        r'(?:\.hiddenProvider|\.CEDataExternal|\.SRonly|\.printBlackText'
+        r'|override\.css|lucy\.css|lucy_colors)\b[^{]*\{[^}]{0,800}\}',
+        re.I | re.S
+    )
+    _INLINE_STIJL = re.compile(
+        r'style\s*=\s*["\'][^"\']{0,400}'
+        r'(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0'
+        r'|left\s*:\s*-\d{4,}px|color\s*:\s*#(?:fff|ffffff)|opacity\s*:\s*0)'
+        r'[^"\']{0,400}["\']',
+        re.I
+    )
+    _CDA_AUTEUR = re.compile(r'<assignedAuthor\b[^>]*>.*?</assignedAuthor>', re.S | re.I)
+    _CDA_SECTIE = re.compile(r'<section\b[^>]*>.*?</section>', re.S | re.I)
+    _BASE64_FIELD = re.compile(
+        r'"(?:bodyData|data|content|payload|value|encoded|raw|body)"\s*:\s*'
+        r'"([A-Za-z0-9+/\r\n]{80,}={0,2})"'
+    )
+    _DIAGNOSE_CTX = re.compile(
+        r'.{0,500}(?:F19\.1|F60\.31|neusdruppelmisbruik|361055000|228273003'
+        r'|228366006|266927001|SUBSTANCEHXQNR|borderline).{0,500}',
+        re.S | re.I
+    )
+    _TIMESTAMP = re.compile(
+        r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?'
+        r'|\d{14}[+-]\d{4}'
+    )
+    _URL = re.compile(r'https?://[^\s\'"<>]{10,300}')
+    _EPIC_VELDEN = {
+        'userId', 'profileName', 'emailAddress', 'mobile', 'scopeUserBirthDate',
+        'authLevel', 'userHasTwoFactorMethods', 'mfn', 'transactionId',
+        'providerName', 'status', 'dateOfLastTransaction', 'groupUrl',
+        'scopeGroupRoles', 'must_set_2fa', 'two_factor_methods',
+    }
+    _TRACKER_DOMEINEN = {
+        'hotjar.com', 'sentry.io', 'pendo.io', 'wingify.com', 'vwo.com',
+        'qualtrics.com', 'segment.io', 'segment.com', 'kameleoon',
+        'contentsquare.com', 'hoppinger.com', 'googletagmanager.com',
+    }
+    _NOVIEW_PATROON = re.compile(r'noView\s*:\s*true', re.I)
+    _GUARD_PATROON = re.compile(r'GUARD\b')
+    _FEATURE_FLAG_PATROON = re.compile(
+        r'(?:DISABLEMYCONDITIONS|DISABLEPLANOFCARE|USERAUDITTRAIL'
+        r'|AUTOGENERATESIGNATURE|SUBSTANCEHXQNR|SEXUALACTIVITYHXQNR'
+        r'|AUTOSYNCRECEIVEFORPERSONALINFORMATION|ExternalJump)', re.I
+    )
+
+    def extraheer(self, tekst: str) -> dict:
+        """Extraheer alle forensisch relevante inhoud uit één HTTP-transactie."""
+        return {
+            'css_verberging':    self._css_blokken(tekst),
+            'inline_stijlen':    self._INLINE_STIJL.findall(tekst)[:20],
+            'cda_auteurs':       self._cda_auteurs(tekst),
+            'cda_secties':       self._cda_secties(tekst),
+            'diagnose_contexten': self._diagnose_contexten(tekst),
+            'base64_payloads':   self._base64_payloads(tekst),
+            'epic_api_data':     self._epic_api_data(tekst),
+            'feature_flags':     self._FEATURE_FLAG_PATROON.findall(tekst),
+            'noview_guard':      {
+                'noView': bool(self._NOVIEW_PATROON.search(tekst)),
+                'GUARD':  bool(self._GUARD_PATROON.search(tekst)),
+            },
+            'alle_timestamps':   list(dict.fromkeys(self._TIMESTAMP.findall(tekst)))[:80],
+            'urls':              self._urls(tekst),
+        }
+
+    def _css_blokken(self, tekst: str) -> list:
+        blokken = [m.group(0)[:800] for m in self._CSS_BLOK.finditer(tekst)]
+        return blokken
+
+    def _cda_auteurs(self, tekst: str) -> list:
+        resultaat = []
+        for m in self._CDA_AUTEUR.finditer(tekst):
+            blok = m.group(0)
+            resultaat.append({
+                'inhoud': blok[:1200],
+                'extensions': re.findall(r'extension="([^"]+)"', blok),
+                'namen':      re.findall(r'<[a-z]*[Nn]ame[^>]*>([^<]+)</', blok),
+                'nullFlavors': re.findall(r'nullFlavor="([^"]+)"', blok),
+            })
+        return resultaat
+
+    def _cda_secties(self, tekst: str) -> list:
+        """Extraheer alle CDA <section>-blokken met diagnose/probleem-content."""
+        relevante = []
+        for m in self._CDA_SECTIE.finditer(tekst):
+            blok = m.group(0)
+            if any(x in blok for x in ('F19', 'F60', '361055000', '228273003',
+                                        'neusdruppelmisbruik', 'borderline', 'SUBSTANCEHXQNR')):
+                relevante.append(blok[:2000])
+        return relevante
+
+    def _diagnose_contexten(self, tekst: str) -> list:
+        return [m.group(0).strip()[:1000] for m in self._DIAGNOSE_CTX.finditer(tekst)]
+
+    def _base64_payloads(self, tekst: str) -> list:
+        gevonden = []
+        for m in self._BASE64_FIELD.finditer(tekst):
+            b64 = re.sub(r'\s+', '', m.group(1))
+            try:
+                decoded = base64.b64decode(b64 + '==')
+                enc_label = 'base64'
+                try:
+                    decoded = gzip.decompress(decoded)
+                    enc_label = 'base64→gzip'
+                except Exception:
+                    pass
+                preview = decoded[:600].decode('utf-8', errors='replace')
+                gevonden.append({
+                    'encoding':       enc_label,
+                    'orig_lengte':    len(b64),
+                    'decoded_lengte': len(decoded),
+                    'sha256':         sha256(decoded),
+                    'preview':        preview,
+                })
+            except Exception:
+                pass
+        return gevonden
+
+    def _epic_api_data(self, tekst: str) -> dict:
+        velden = {}
+        if '{' not in tekst:
+            return velden
+        try:
+            data = json.loads(tekst)
+            self._scan_json(data, velden, 0)
+        except Exception:
+            for v in self._EPIC_VELDEN:
+                m = re.search(
+                    rf'"{re.escape(v)}"\s*:\s*(?:"([^"]*)"|([\d.]+)|(true|false|null))',
+                    tekst
+                )
+                if m:
+                    velden[v] = (m.group(1) or m.group(2) or m.group(3) or '')[:300]
+        return velden
+
+    def _scan_json(self, obj, result: dict, diepte: int):
+        if diepte > 7:
+            return
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in self._EPIC_VELDEN and v is not None:
+                    result[k] = str(v)[:300]
+                self._scan_json(v, result, diepte + 1)
+        elif isinstance(obj, list):
+            for item in obj[:10]:
+                self._scan_json(item, result, diepte + 1)
+
+    def _urls(self, tekst: str) -> dict:
+        alle = list(dict.fromkeys(self._URL.findall(tekst)))[:100]
+        trackers = [u for u in alle if any(d in u.lower() for d in self._TRACKER_DOMEINEN)]
+        overig   = [u for u in alle if u not in trackers]
+        return {'trackers': trackers[:30], 'overig': overig[:60]}
+
+
 class Bevinding:
     """Één forensische bevinding met metadata."""
     __slots__ = ["categorie", "omschrijving", "url", "methode", "status",
@@ -290,21 +452,20 @@ def scan_tekst(tekst: str, url: str, methode: str, status: int,
         m = patroon.search(tekst)
         if m:
             voeg_toe("CSS_VERBERGING", beschrijving, "KRITIEK",
-                     tekst[max(0, m.start()-80):m.end()+80])
+                     tekst[max(0, m.start()-200):m.end()+400])
 
-    # CDA-anomalieën
+    # CDA-anomalieën — ALL voorkomens, grotere context
     for patroon, beschrijving in CDA_ANOMALIEEN:
         for m in patroon.finditer(tekst):
             voeg_toe("CDA_ANOMALIE", beschrijving, "KRITIEK",
-                     tekst[max(0, m.start()-80):m.end()+80])
-            break  # één per type per transactie
+                     tekst[max(0, m.start()-300):m.end()+500])
 
-    # Diagnose-codes
+    # Diagnose-codes — volledige CDA-sectie als context
     for patroon, beschrijving in DIAGNOSE_CODES:
         m = patroon.search(tekst)
         if m:
             voeg_toe("DIAGNOSE_CODE", beschrijving, "KRITIEK",
-                     tekst[max(0, m.start()-100):m.end()+100])
+                     tekst[max(0, m.start()-400):m.end()+400])
 
     # Audit trail blokkade
     for patroon, beschrijving in AUDIT_TRAIL_BLOKKADE:
@@ -312,28 +473,28 @@ def scan_tekst(tekst: str, url: str, methode: str, status: int,
         if m:
             ernst = "KRITIEK" if status in (0, 403, 401) else "HOOG"
             voeg_toe("AUDIT_BLOKKADE", beschrijving, ernst,
-                     tekst[max(0, m.start()-60):m.end()+60])
+                     tekst[max(0, m.start()-150):m.end()+200])
 
     # Feature flags
     for patroon, beschrijving in FEATURE_FLAGS:
         m = patroon.search(tekst)
         if m:
             voeg_toe("FEATURE_FLAG", beschrijving, "HOOG",
-                     tekst[max(0, m.start()-60):m.end()+60])
+                     tekst[max(0, m.start()-200):m.end()+300])
 
     # Trackers
     for patroon, beschrijving in TRACKERS:
         m = patroon.search(tekst)
         if m:
             voeg_toe("TRACKER", beschrijving, "HOOG",
-                     tekst[max(0, m.start()-60):m.end()+60])
+                     tekst[max(0, m.start()-150):m.end()+200])
 
     # LSP/FHIR
     for patroon, beschrijving in LSP_FHIR:
         m = patroon.search(tekst)
         if m:
             voeg_toe("LSP_FHIR", beschrijving, "HOOG",
-                     tekst[max(0, m.start()-80):m.end()+80])
+                     tekst[max(0, m.start()-200):m.end()+400])
 
     # Nachtelijke timestamps
     for nt in SPECIFIEKE_NACHTTIJDEN:
@@ -509,15 +670,35 @@ def laad_capture(pad: str) -> list:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def analyseer(pad: str, output_map: str):
-    """Analyseer een capture-bestand en schrijf forensisch rapport."""
+    """Analyseer een capture-bestand en schrijf forensisch rapport + extractie-map."""
     start = datetime.datetime.now(datetime.timezone.utc)
     transacties = laad_capture(pad)
     print(f"[+] {len(transacties)} transacties geladen")
 
+    extractor = DataExtractor()
     alle_bevindingen: list[Bevinding] = []
+    alle_extracties: list[dict] = []
+
     for url, methode, status, tijdstempel, tekst in transacties:
         bevs = scan_tekst(tekst, url, methode, status, tijdstempel)
         alle_bevindingen.extend(bevs)
+
+        # Extraheer daadwerkelijke inhoud (ook als geen bevinding gevonden)
+        ext = extractor.extraheer(tekst)
+        heeft_data = any([
+            ext['css_verberging'], ext['cda_auteurs'], ext['diagnose_contexten'],
+            ext['base64_payloads'], ext['epic_api_data'], ext['feature_flags'],
+            ext['noview_guard']['noView'], ext['noview_guard']['GUARD'],
+            ext['urls']['trackers'],
+        ])
+        if heeft_data:
+            alle_extracties.append({
+                'url': url,
+                'methode': methode,
+                'status': status,
+                'tijdstempel': tijdstempel,
+                **ext,
+            })
 
     alle_bevindingen.sort()
 
@@ -600,6 +781,87 @@ def analyseer(pad: str, output_map: str):
                 ctx = b.context.replace("\n", " ")[:200]
                 f.write(f"      Context: ...{ctx}...\n")
             f.write("\n")
+
+    # ── Geëxtraheerde data — aparte JSON en per-categorie bestanden ──────────
+    if alle_extracties:
+        ext_map = os.path.join(output_map, "geextraheerde_inhoud")
+        os.makedirs(ext_map, exist_ok=True)
+
+        # Master extractie JSON
+        ext_json_pad = os.path.join(ext_map, f"extractie_{ts}.json")
+        with open(ext_json_pad, "w", encoding="utf-8") as f:
+            json.dump(alle_extracties, f, ensure_ascii=False, indent=2)
+
+        # CSS-verberging blokken
+        css_blokken = []
+        for e in alle_extracties:
+            for blok in e.get('css_verberging', []):
+                css_blokken.append(f"# {e['url']}\n{blok}\n")
+        if css_blokken:
+            with open(os.path.join(ext_map, "css_verberging.txt"), "w", encoding="utf-8") as f:
+                f.write(("\n" + "─" * 60 + "\n").join(css_blokken))
+
+        # CDA-auteur blokken
+        cda_auteurs_alle = []
+        for e in alle_extracties:
+            for a in e.get('cda_auteurs', []):
+                cda_auteurs_alle.append({
+                    'url': e['url'],
+                    'tijdstempel': e['tijdstempel'],
+                    **a,
+                })
+        if cda_auteurs_alle:
+            with open(os.path.join(ext_map, "cda_auteurs.json"), "w", encoding="utf-8") as f:
+                json.dump(cda_auteurs_alle, f, ensure_ascii=False, indent=2)
+
+        # Diagnose-contexten (volledige CDA-fragmenten)
+        diagnose_alle = []
+        for e in alle_extracties:
+            for ctx in e.get('diagnose_contexten', []):
+                diagnose_alle.append(f"# URL: {e['url']}\n# Tijdstempel: {e['tijdstempel']}\n{ctx}\n")
+        if diagnose_alle:
+            with open(os.path.join(ext_map, "diagnose_contexten.txt"), "w", encoding="utf-8") as f:
+                f.write(("\n" + "═" * 60 + "\n").join(diagnose_alle))
+
+        # Base64 payloads
+        b64_alle = []
+        for e in alle_extracties:
+            for p in e.get('base64_payloads', []):
+                b64_alle.append({'url': e['url'], **p})
+        if b64_alle:
+            with open(os.path.join(ext_map, "base64_payloads.json"), "w", encoding="utf-8") as f:
+                json.dump(b64_alle, f, ensure_ascii=False, indent=2)
+
+        # Epic API-velden
+        epic_velden_alle = []
+        for e in alle_extracties:
+            velden = e.get('epic_api_data', {})
+            if velden:
+                epic_velden_alle.append({'url': e['url'], 'tijdstempel': e['tijdstempel'], 'velden': velden})
+        if epic_velden_alle:
+            with open(os.path.join(ext_map, "epic_api_data.json"), "w", encoding="utf-8") as f:
+                json.dump(epic_velden_alle, f, ensure_ascii=False, indent=2)
+
+        # Tracker-URLs
+        tracker_urls_alle = {}
+        for e in alle_extracties:
+            for u in e.get('urls', {}).get('trackers', []):
+                tracker_urls_alle[u] = e['url']
+        if tracker_urls_alle:
+            with open(os.path.join(ext_map, "tracker_urls.txt"), "w", encoding="utf-8") as f:
+                for tracker_url, bron in sorted(tracker_urls_alle.items()):
+                    f.write(f"{tracker_url}\n  (gevonden in: {bron})\n")
+
+        # Alle unieke timestamps
+        ts_set = set()
+        for e in alle_extracties:
+            ts_set.update(e.get('alle_timestamps', []))
+        if ts_set:
+            with open(os.path.join(ext_map, "alle_timestamps.txt"), "w", encoding="utf-8") as f:
+                f.write("\n".join(sorted(ts_set)))
+
+        print(f"    Extractie: {os.path.relpath(ext_map)}/")
+        print(f"      {len(alle_extracties)} transacties met verborgen/geëxtraheerde data")
 
     # Evidence hash-log
     hash_pad = os.path.join(output_map, f"evidence_hashes_{ts}.txt")

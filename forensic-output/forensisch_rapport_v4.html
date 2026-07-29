@@ -1,0 +1,979 @@
+<title>Forensisch Rapport v4 — CDA-Vervanging + Proxyman Session Analyse</title>
+<style>
+  :root {
+    --bg:#f5f3ef;--bg2:#edeae4;--bg3:#e3e0d8;--surface:#ffffff;--border:#ccc9c0;
+    --text:#1c1a17;--text2:#4a4640;--text3:#7a756d;--accent:#1a3a5c;
+    --red:#b91c1c;--red-bg:#fef2f2;--red-border:#fecaca;
+    --orange:#c2410c;--orange-bg:#fff7ed;--orange-border:#fed7aa;
+    --yellow:#92400e;--yellow-bg:#fffbeb;--yellow-border:#fde68a;
+    --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+    --green:#166534;--green-bg:#f0fdf4;--green-border:#bbf7d0;
+    --mono:'Courier New','Consolas',monospace;
+    --serif:Georgia,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  @media(prefers-color-scheme:dark){:root{
+    --bg:#0f1117;--bg2:#161820;--bg3:#1e2029;--surface:#1a1c25;--border:#2e3140;
+    --text:#e8e6e0;--text2:#a8a49c;--text3:#6b6760;--accent:#7eb3e0;
+    --red:#f87171;--red-bg:#2d1515;--red-border:#7f1d1d;
+    --orange:#fb923c;--orange-bg:#2d1d0d;--orange-border:#7c2d12;
+    --yellow:#fcd34d;--yellow-bg:#2d2208;--yellow-border:#78350f;
+    --blue:#93c5fd;--blue-bg:#0f1f3d;--blue-border:#1e3a5f;
+    --green:#86efac;--green-bg:#0d2718;--green-border:#14532d;
+  }}
+  :root[data-theme="light"]{--bg:#f5f3ef;--bg2:#edeae4;--bg3:#e3e0d8;--surface:#ffffff;--border:#ccc9c0;--text:#1c1a17;--text2:#4a4640;--text3:#7a756d;--red:#b91c1c;--red-bg:#fef2f2;--red-border:#fecaca;--orange:#c2410c;--orange-bg:#fff7ed;--orange-border:#fed7aa;--yellow:#92400e;--yellow-bg:#fffbeb;--yellow-border:#fde68a;--blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;--green:#166534;--green-bg:#f0fdf4;--green-border:#bbf7d0;}
+  :root[data-theme="dark"]{--bg:#0f1117;--bg2:#161820;--bg3:#1e2029;--surface:#1a1c25;--border:#2e3140;--text:#e8e6e0;--text2:#a8a49c;--text3:#6b6760;--red:#f87171;--red-bg:#2d1515;--red-border:#7f1d1d;--orange:#fb923c;--orange-bg:#2d1d0d;--orange-border:#7c2d12;--yellow:#fcd34d;--yellow-bg:#2d2208;--yellow-border:#78350f;--blue:#93c5fd;--blue-bg:#0f1f3d;--blue-border:#1e3a5f;--green:#86efac;--green-bg:#0d2718;--green-border:#14532d;}
+  *,*::before,*::after{box-sizing:border-box}
+  html{font-size:15px}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6}
+  .page{max-width:940px;margin:0 auto;padding:0 1.5rem 4rem}
+
+  .alert-banner{background:var(--red-bg);border:2px solid var(--red-border);border-radius:6px;padding:1rem 1.25rem;margin-bottom:2rem;display:flex;gap:.75rem;align-items:flex-start;}
+  .alert-icon{font-size:1.3rem;line-height:1;flex-shrink:0;padding-top:.1rem}
+  .alert-body{font-size:.88rem;color:var(--red)}
+  .alert-title{font-weight:700;font-size:.9rem;margin-bottom:.2rem}
+  .alert-banner-orange{background:var(--orange-bg);border:2px solid var(--orange-border);border-radius:6px;padding:1rem 1.25rem;margin-bottom:2rem;display:flex;gap:.75rem;align-items:flex-start;}
+  .alert-icon-orange{font-size:1.3rem;line-height:1;flex-shrink:0;padding-top:.1rem}
+  .alert-body-orange{font-size:.88rem;color:var(--orange)}
+  .alert-title-orange{font-weight:700;font-size:.9rem;margin-bottom:.2rem}
+
+  header{padding:2.5rem 0 2rem;border-bottom:2px solid var(--border);margin-bottom:2rem}
+  .doc-label{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem}
+  h1{font-family:var(--serif);font-size:1.7rem;font-weight:700;margin:0 0 .5rem;color:var(--text);text-wrap:balance;line-height:1.25}
+  .subtitle{font-size:.9rem;color:var(--text2);margin-bottom:1.25rem}
+  .meta-row{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;font-size:.8rem;color:var(--text3)}
+  .meta-row strong{color:var(--text2)}
+  section{margin-bottom:2.5rem}
+  h2{font-family:var(--sans);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin:0 0 .75rem;padding-bottom:.35rem;border-bottom:1px solid var(--border)}
+  h2.section-new{color:var(--orange);border-bottom-color:var(--orange-border)}
+  h3{font-family:var(--serif);font-size:1rem;margin:0 0 .6rem;color:var(--text)}
+  .badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.2em .55em;border-radius:3px;font-family:var(--sans);vertical-align:middle;white-space:nowrap}
+  .badge-kritiek{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+  .badge-hoog{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+  .badge-middel,.badge-midden{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)}
+  .badge-info{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+  .badge-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+  .evidence-table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th{text-align:left;font-size:.66rem;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:.5rem .75rem;border-bottom:2px solid var(--border);white-space:nowrap}
+  td{padding:.5rem .75rem;border-bottom:1px solid var(--border);vertical-align:top;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .hash{font-family:var(--mono);font-size:.7rem;color:var(--text2);word-break:break-all}
+  .filename{font-weight:600;color:var(--text)}
+
+  .timeline{position:relative;padding-left:1.5rem;margin:0;list-style:none}
+  .timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--border)}
+  .timeline li{position:relative;margin-bottom:1.1rem}
+  .timeline li::before{content:'';position:absolute;left:-1.5rem;top:.45rem;width:10px;height:10px;border-radius:50%;border:2px solid var(--border);background:var(--bg)}
+  .tl-complete::before{background:var(--green)!important;border-color:var(--green)!important}
+  .tl-replace::before{background:var(--red)!important;border-color:var(--red)!important}
+  .tl-neutral::before{background:var(--text3)!important;border-color:var(--text3)!important}
+  .tl-warn::before{background:var(--orange)!important;border-color:var(--orange)!important}
+  .t-time{font-family:var(--mono);font-size:.75rem;color:var(--text3);margin-bottom:.1rem}
+  .t-event{font-size:.88rem;color:var(--text)}
+  .t-note{font-size:.78rem;color:var(--text2);margin-top:.15rem}
+
+  .submission-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+  .sub-card{border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface)}
+  .sub-card.sub-v1{border-top:3px solid var(--green)}
+  .sub-card.sub-v2{border-top:3px solid var(--red)}
+  .sub-header{padding:.6rem .9rem;font-size:.75rem;font-weight:700;letter-spacing:.05em;background:var(--bg2)}
+  .sub-header.h-v1{color:var(--green)}
+  .sub-header.h-v2{color:var(--red)}
+  .sub-body{padding:.75rem .9rem;font-size:.8rem;color:var(--text2);line-height:1.6}
+  .sub-row{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding:.3rem 0}
+  .sub-row:last-child{border-bottom:none}
+  .sub-key{color:var(--text3);font-size:.72rem;letter-spacing:.04em}
+  .sub-val{font-family:var(--mono);font-size:.72rem;color:var(--text)}
+
+  .cmp-table td:first-child{font-weight:500;width:32%}
+  .cmp-table td:nth-child(2),.cmp-table td:nth-child(3){width:34%;font-size:.82rem}
+  .present{color:var(--green)}
+  .missing{color:var(--red);font-weight:600}
+  .added{color:var(--orange);font-weight:600}
+
+  .finding-card{border:1px solid var(--border);border-radius:6px;background:var(--surface);margin-bottom:1.25rem;overflow:hidden}
+  .finding-card.fc-new{border-color:var(--orange-border)}
+  .finding-header{display:flex;align-items:flex-start;gap:.75rem;padding:.85rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border)}
+  .finding-header.fh-new{background:var(--orange-bg)}
+  .finding-num{font-size:.68rem;font-family:var(--mono);color:var(--text3);white-space:nowrap;padding-top:.15rem}
+  .finding-title{flex:1;font-family:var(--serif);font-size:.97rem;font-weight:700;color:var(--text);line-height:1.3}
+  .finding-body{padding:.9rem 1rem;display:grid;gap:.75rem}
+  .finding-row{display:grid;grid-template-columns:5.5rem 1fr;gap:.5rem;font-size:.82rem}
+  .finding-label{font-size:.63rem;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding-top:.15rem}
+  .finding-value{color:var(--text2);line-height:1.5}
+  .finding-value.strong{color:var(--text);font-weight:600}
+  code{font-family:var(--mono);font-size:.75rem;background:var(--bg3);padding:.15em .4em;border-radius:3px;color:var(--text2)}
+  pre{font-family:var(--mono);font-size:.73rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:.75rem;overflow-x:auto;color:var(--text2);margin:.25rem 0 0;line-height:1.55}
+
+  .sr-kritiek td:first-child{border-left:3px solid var(--red)}
+  .sr-hoog td:first-child{border-left:3px solid var(--orange)}
+  .sr-midden td:first-child{border-left:3px solid var(--yellow)}
+  .sr-middel td:first-child{border-left:3px solid var(--yellow)}
+  .sr-info td:first-child{border-left:3px solid var(--blue)}
+  .sr-new td{background:var(--orange-bg);opacity:.85}
+
+  .yaml-sources{display:grid;gap:.5rem;margin-bottom:1rem}
+  .yaml-card{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:.65rem .9rem;font-size:.78rem}
+  .yaml-card .fn{font-weight:700;font-family:var(--mono);font-size:.72rem;color:var(--text)}
+  .yaml-card .sh{font-family:var(--mono);font-size:.67rem;color:var(--text3);word-break:break-all}
+  .yaml-card .desc{color:var(--text2);margin-top:.2rem}
+
+  .session-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1rem}
+  .session-card{border:1px solid var(--border);border-radius:5px;padding:.7rem .85rem;background:var(--surface);font-size:.78rem}
+  .session-card.sc-mobile{border-top:3px solid var(--green)}
+  .session-card.sc-desktop{border-top:3px solid var(--red)}
+  .session-card.sc-pgo{border-top:3px solid var(--blue)}
+  .sc-label{font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.4rem}
+  .sc-label.lb-mobile{color:var(--green)}
+  .sc-label.lb-desktop{color:var(--red)}
+  .sc-label.lb-pgo{color:var(--blue)}
+  .sc-row{display:flex;justify-content:space-between;gap:.5rem;border-bottom:1px solid var(--border);padding:.25rem 0;font-size:.72rem}
+  .sc-row:last-child{border-bottom:none}
+  .sc-key{color:var(--text3)}
+  .sc-val{font-family:var(--mono);color:var(--text);text-align:right;word-break:break-all}
+
+  footer{padding-top:2rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--text3);line-height:1.6}
+  @media(max-width:600px){
+    .submission-grid{grid-template-columns:1fr}
+    .session-grid{grid-template-columns:1fr}
+    .finding-row{grid-template-columns:1fr}
+    .finding-label{padding-top:0}
+  }
+</style>
+
+<div class="page">
+
+<header>
+  <div class="doc-label">Forensisch Rapport &mdash; Versie 4.0 &middot; Medisch Dossieronderzoek</div>
+  <h1>Formele CDA-Documentvervanging + Epic Sessie-Anomalie&euml;n<br>Spaarne Gasthuis &mdash; 17 oktober 2024 &amp; 28 juli 2026</h1>
+  <div class="subtitle">Twee complete XDS-indieningsets (SHA-1 geverifieerd) tonen opzettelijke vervanging van medisch dossier; Proxyman captures van 28-07-2026 bevestigen systeemische authenticatie- en patroonanomalieën</div>
+  <div class="meta-row">
+    <span><strong>Pati&euml;nte:</strong> Mevr. I. Grothe &mdash; BSN 215672185</span>
+    <span><strong>Zorginstelling:</strong> Spaarne Gasthuis (orgid 621)</span>
+    <span><strong>Datum rapport:</strong> 28 juli 2026</span>
+    <span><strong>Referentie:</strong> AVG art. 15 inzageverzoek 10-01-2026</span>
+    <span><strong>Versie:</strong> 4.0 (uitbreiding v3.0 met sectie J &mdash; YAML-captures)</span>
+  </div>
+</header>
+
+<!-- ALERT ROOD -->
+<div class="alert-banner">
+  <div class="alert-icon">&#9888;</div>
+  <div class="alert-body">
+    <div class="alert-title">Beslissende bevinding &mdash; Formele documentvervanging bewezen</div>
+    De XDS-metadata bewijst dat binnen 7&nbsp;minuten en 39&nbsp;seconden na de eerste download een <em>formele HL7 CDA RPLC-vervanging</em> werd ingediend: DOC0001 versie&nbsp;2 verving versie&nbsp;1 expliciet, waarbij alle clinisch relevante secties waren verwijderd. Dit is geen renderingsfout &mdash; het is een gedocumenteerde, bewuste actie in het Epic-bronsysteem.
+  </div>
+</div>
+
+<!-- ALERT ORANJE — NIEUW -->
+<div class="alert-banner-orange">
+  <div class="alert-icon-orange">&#9888;</div>
+  <div class="alert-body-orange">
+    <div class="alert-title-orange">Nieuw &mdash; Sectie J: Proxyman captures 28 juli 2026</div>
+    Analyse van 5 YAML-captures (archief SHA-256: <code style="font-size:.78rem;color:var(--orange)">a9704c72d04d3fb23be2db354932fd38f0091a8a23d235cfa8c14b70e5336c5a</code>) toont: (1) Epic MyChart accepteert JWT-authenticatietoken van <strong>2 maart 2026 (148 dagen oud)</strong> op 28-07-2026 en levert daarmee documenten; (2) het dubbele-download-patroon van oktober 2024 herhaalt zich exact: <em>Gezondheidssamenvatting_02_mrt_2026.zip</em> wordt tweemaal gedownload met dezelfde parameters, 6 minuten uit elkaar; (3) MedMij toont Spaarne Gasthuis als <strong>PARTIAL_SUCCESS</strong> &mdash; onvolledige gegevensoverdracht per 11 januari 2026, de dag na het AVG art. 15 inzageverzoek.
+  </div>
+</div>
+
+<!-- BEWIJSKETEN SECTIE A -->
+<section>
+  <h2>Sectie A &mdash; Bewijsketen: Alle Bronbestanden</h2>
+  <div class="evidence-table-wrap">
+    <table>
+      <thead><tr><th>Bestand</th><th>Indiening</th><th>Grootte</th><th>SHA-1 (uit METADATA)</th><th>SHA-256 (berekend)</th><th>Verificatie</th></tr></thead>
+      <tbody>
+        <tr><td class="filename">b96585bb-METADATA.XML</td><td>1e</td><td>13.725 B</td><td>&mdash;</td><td class="hash">a8a44e71&hellip;e89c82</td><td>&mdash;</td></tr>
+        <tr><td class="filename">60397a7e-DOC0001.XML <span class="badge badge-ok">v1 compleet</span></td><td>1e</td><td>62.156 B</td><td class="hash">c4d7601b&hellip;d0a089d</td><td class="hash">429a1857&hellip;641e2</td><td><span class="badge badge-ok">&#10003; match</span></td></tr>
+        <tr><td class="filename">e90a038f-DOC0002.XML <span class="badge badge-ok">v1 volledig</span></td><td>1e</td><td>67.550 B</td><td class="hash">1afbdda2&hellip;814cf</td><td class="hash">bcf468ec&hellip;330d0c8</td><td><span class="badge badge-ok">&#10003; match</span></td></tr>
+        <tr><td class="filename">1406c377-METADATA.XML</td><td>2e</td><td>13.558 B</td><td>&mdash;</td><td class="hash">d37af80d&hellip;27cc0e</td><td>&mdash;</td></tr>
+        <tr><td class="filename">da96a6cf-DOC0001.XML <span class="badge badge-kritiek">v2 leeg</span></td><td>2e</td><td>15.653 B</td><td class="hash">185d365c&hellip;1ad80</td><td class="hash">385af1d1&hellip;515028</td><td><span class="badge badge-ok">&#10003; match</span></td></tr>
+        <tr><td class="filename">df1eb0d9-DOC0002.XML <span class="badge badge-kritiek">v2 fout</span></td><td>2e</td><td>186 B</td><td class="hash">7e92e6a9&hellip;fabf3</td><td class="hash">5c30f516&hellip;0fd14</td><td><span class="badge badge-ok">&#10003; match</span></td></tr>
+        <tr><td class="filename">eacc6c17-PDF (AVG-inzage 10-01-2026)</td><td>n.v.t.</td><td>3.059.712 B</td><td>&mdash;</td><td class="hash">c3afcb18&hellip;641d62ae8e1c</td><td>&mdash;</td></tr>
+        <tr><td class="filename">9b409e75-yaml_juli.zip <span class="badge badge-info">Nieuw J</span></td><td>n.v.t.</td><td>9.849.447 B</td><td>&mdash;</td><td class="hash">a9704c72d04d3fb23be2db354932fd38f0091a8a23d235cfa8c14b70e5336c5a</td><td>Proxyman archive 28-07-2026</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.78rem;color:var(--text3);margin-top:.5rem">Alle SHA-1-hashes in METADATA.XML sluiten 100% aan op de werkelijke bestanden. De bewijsketen is ononderbroken.</p>
+</section>
+
+<!-- TIJDLIJN -->
+<section>
+  <h2>Sectie A &mdash; Gereconstrueerde Tijdlijn: 17 oktober 2024</h2>
+  <ul class="timeline">
+    <li class="tl-complete">
+      <div class="t-time">17-10-2024 &middot; 14:19:33 CEST (12:19:33 UTC)</div>
+      <div class="t-event"><strong>1e XDS SubmissionSet ingediend &mdash; complete data</strong></div>
+      <div class="t-note">Bronbewijs: <code>submissionTime=20241017121933</code> (METADATA b96585bb) &middot; uniqueId ticks: <code>.638647715735199621</code></div>
+    </li>
+    <li class="tl-complete">
+      <div class="t-time">14:19:34 CEST &mdash; DOC0001.XML v1 geregistreerd (62.156 bytes)</div>
+      <div class="t-event">Pati&euml;ntsamenvatting &mdash; VOLLEDIG &mdash; allergie&euml;n, medicatie, diagnoses, contacten, sociale anamnese, behandelplan</div>
+      <div class="t-note"><code>creationTime=20241017121934</code> &middot; SHA-1: c4d7601b&hellip; &#10003; geverifieerd</div>
+    </li>
+    <li class="tl-complete">
+      <div class="t-time">14:19:35 CEST &mdash; DOC0002.XML v1 geregistreerd (67.550 bytes)</div>
+      <div class="t-event">Contactsamenvatting 02-10-2024 &mdash; VOLLEDIG &mdash; alle medicatie incl. Dexamfetamine, Cyproteron, Fusidinezuur</div>
+      <div class="t-note"><code>creationTime=20241017121935</code> &middot; SHA-1: 1afbdda2&hellip; &#10003; geverifieerd</div>
+    </li>
+    <li class="tl-complete">
+      <div class="t-time">&asymp;14:19 CEST &mdash; kopie_2.PDF gerenderd door PGO (392.023 bytes, 5 pagina's)</div>
+      <div class="t-event">Volledige PDF van beide CDA-documenten &mdash; bevat alle medische secties</div>
+      <div class="t-note">Dit is de &ldquo;eerste download&rdquo; die de pati&euml;nte heeft bewaard</div>
+    </li>
+    <li class="tl-replace">
+      <div class="t-time">17-10-2024 &middot; 14:27:12 CEST (12:27:12 UTC) &mdash; <strong>+7 min 39 sec</strong></div>
+      <div class="t-event"><strong>2e XDS SubmissionSet ingediend &mdash; RPLC-vervanging &mdash; data verwijderd</strong></div>
+      <div class="t-note">Bronbewijs: <code>submissionTime=20241017122712</code> (METADATA 1406c377) &middot; uniqueId ticks: <code>.638647720320209269</code> &middot; &Delta; = 459 seconden</div>
+    </li>
+    <li class="tl-replace">
+      <div class="t-time">14:27:12 CEST &mdash; DOC0001.XML v2 geregistreerd (15.653 bytes)</div>
+      <div class="t-event"><strong>Pati&euml;ntsamenvatting versie 2 &mdash; VERVANGT v1 &mdash; alleen vitale gegevens + &ldquo;Niet in het systeem&rdquo;</strong></div>
+      <div class="t-note"><code>typeCode="RPLC"</code> &middot; <code>versionNumber="2"</code> &middot; parentDocument verwijst naar v1 &middot; SHA-1: 185d365c&hellip; &#10003; geverifieerd</div>
+    </li>
+    <li class="tl-replace">
+      <div class="t-time">14:27:13 CEST &mdash; DOC0002.XML v2 geregistreerd (186 bytes)</div>
+      <div class="t-event"><strong>Contactsamenvatting vervangen door puur foutbericht &mdash; lege pati&euml;ntidentificatie</strong></div>
+      <div class="t-note">Inhoud: <code>&lt;Error&gt;Er was een probleem bij het genereren van het document voor uw bezoek op: 19891213&lt;/Error&gt;</code> &middot; PID-velden leeg &middot; authorInstitution leeg</div>
+    </li>
+    <li class="tl-neutral">
+      <div class="t-time">&asymp;14:27 CEST &mdash; origineel.PDF gerenderd (183.082 bytes, 2 pagina's)</div>
+      <div class="t-event">Incomplete PDF van v2-documenten &mdash; dit is wat de pati&euml;nte als &ldquo;tweede download&rdquo; ontving</div>
+    </li>
+  </ul>
+</section>
+
+<!-- TWEE INDIENINGSETS VERGELIJKING -->
+<section>
+  <h2>Sectie A &mdash; Vergelijking Twee XDS-Indieningsets</h2>
+  <div class="submission-grid">
+    <div class="sub-card sub-v1">
+      <div class="sub-header h-v1">1e INDIENING &mdash; 14:19:33 CEST &mdash; VOLLEDIG</div>
+      <div class="sub-body">
+        <div class="sub-row"><span class="sub-key">submissionTime</span><span class="sub-val">20241017121933</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0001 grootte</span><span class="sub-val">62.156 bytes</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0001 SHA-1</span><span class="sub-val">c4d7601b&hellip; &#10003;</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0001 inhoud</span><span class="sub-val" style="color:var(--green)">6+ medische secties</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0002 grootte</span><span class="sub-val">67.550 bytes</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0002 SHA-1</span><span class="sub-val">1afbdda2&hellip; &#10003;</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0002 inhoud</span><span class="sub-val" style="color:var(--green)">Volledige contactsamenvatting</span></div>
+        <div class="sub-row"><span class="sub-key">PID-5 (naam)</span><span class="sub-val">Grothe^I.^^^^</span></div>
+        <div class="sub-row"><span class="sub-key">authorInstitution</span><span class="sub-val">Spaarne Gasthuis</span></div>
+        <div class="sub-row"><span class="sub-key">repositoryId DOC1</span><span class="sub-val">9d77d883-96d1&hellip;</span></div>
+        <div class="sub-row"><span class="sub-key">repositoryId DOC2</span><span class="sub-val">f7759508-c1a7&hellip;</span></div>
+      </div>
+    </div>
+    <div class="sub-card sub-v2">
+      <div class="sub-header h-v2">2e INDIENING &mdash; 14:27:12 CEST &mdash; RPLC-VERVANGING</div>
+      <div class="sub-body">
+        <div class="sub-row"><span class="sub-key">submissionTime</span><span class="sub-val">20241017122712</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0001 grootte</span><span class="sub-val" style="color:var(--red)">15.653 bytes (&minus;75%)</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0001 SHA-1</span><span class="sub-val">185d365c&hellip; &#10003;</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0001 inhoud</span><span class="sub-val" style="color:var(--red)">Alleen vitale gegevens + fout</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0002 grootte</span><span class="sub-val" style="color:var(--red)">186 bytes (&minus;99,7%)</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0002 SHA-1</span><span class="sub-val">7e92e6a9&hellip; &#10003;</span></div>
+        <div class="sub-row"><span class="sub-key">DOC0002 inhoud</span><span class="sub-val" style="color:var(--red)">Puur foutbericht &ldquo;19891213&rdquo;</span></div>
+        <div class="sub-row"><span class="sub-key">PID-5 (naam)</span><span class="sub-val" style="color:var(--red)">(leeg)</span></div>
+        <div class="sub-row"><span class="sub-key">authorInstitution</span><span class="sub-val" style="color:var(--red)">(leeg)</span></div>
+        <div class="sub-row"><span class="sub-key">repositoryId DOC1</span><span class="sub-val">0ff3cdae-4e3a&hellip; (anders!)</span></div>
+        <div class="sub-row"><span class="sub-key">repositoryId DOC2</span><span class="sub-val">f210e956-279c&hellip; (anders!)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTIE-VERGELIJKING -->
+<section>
+  <h2>Sectie A &mdash; Sectie-voor-Sectie: DOC0001 v1 vs DOC0001 v2</h2>
+  <div class="evidence-table-wrap">
+    <table class="cmp-table">
+      <thead><tr><th>Sectie</th><th>v1 &mdash; 14:19:34 (62 KB)</th><th>v2 &mdash; 14:27:12 (15 KB) RPLC</th></tr></thead>
+      <tbody>
+        <tr><td>Persoonsgegevens</td><td class="present">&#10003; aanwezig</td><td class="present">&#10003; aanwezig</td></tr>
+        <tr><td>Allergie&euml;n</td><td class="present">&#10003; Amoxicilline/Clavulaanzuur 29-11-2018</td><td class="missing">&#10007; VERWIJDERD</td></tr>
+        <tr><td>Medicatie</td><td class="present">&#10003; DEXAMFETAMINE actief + 2 be&euml;indigd</td><td class="missing">&#10007; VERWIJDERD</td></tr>
+        <tr><td>Actieve problemen</td><td class="present">&#10003; myalgie 02-10-2024</td><td class="missing">&#10007; VERWIJDERD</td></tr>
+        <tr><td>Gesloten problemen</td><td class="present">&#10003; 4 diagnoses 2017&ndash;2020</td><td class="missing">&#10007; VERWIJDERD</td></tr>
+        <tr><td>Contacten (3 maanden)</td><td class="present">&#10003; 3 contacten oktober 2024</td><td class="missing">&#10007; VERWIJDERD</td></tr>
+        <tr><td>Sociale anamnese</td><td class="present">&#10003; tabak, alcohol, drugsgebruik</td><td class="missing">&#10007; VERWIJDERD</td></tr>
+        <tr><td>Behandelplan</td><td class="present">&#10003; afspraak 12-11-2024 + geplande order</td><td class="missing">&#10007; Vervangen door &ldquo;Niet in het systeem&rdquo;</td></tr>
+        <tr><td>Vitale gegevens</td><td class="present">&#10003; aanwezig</td><td class="present">&#10003; aanwezig</td></tr>
+        <tr><td>RPLC-relatie</td><td style="color:var(--text3)">&mdash; (origineel document)</td><td class="added">&#9888; typeCode="RPLC" &rarr; vervangt v1</td></tr>
+        <tr><td>Foutmelding &ldquo;19891213&rdquo;</td><td style="color:var(--text3)">&mdash; afwezig</td><td class="added">&#9888; Toegevoegd in DOC0002</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- BEVINDINGEN SECTIE A/B -->
+<section>
+  <h2>Sectie A/B &mdash; Bevindingen: XDS-Analyse &amp; Dossierinhoud</h2>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-01</span>
+      <span class="finding-title">Formele HL7 CDA RPLC-vervanging van volledig medisch dossier binnen 7 minuten 39 seconden</span>
+      <span class="badge badge-kritiek">Kritiek</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          DOC0001 v2 (<code>da96a6cf</code>) bevat:
+          <pre>&lt;versionNumber value="2" /&gt;
+&lt;relatedDocument typeCode="RPLC"&gt;
+  &lt;parentDocument&gt;
+    &lt;id root="1.2.840.114350.1.13.201.2.7.8.688883.5616717" /&gt;
+    &lt;setId extension="00000000-1ff7-d5eb-1718-79ee0fb96b5a" /&gt;
+    &lt;versionNumber value="1" /&gt;
+  &lt;/parentDocument&gt;
+&lt;/relatedDocument&gt;</pre>
+          <code>typeCode="RPLC"</code> = HL7 CDA &ldquo;Replaces&rdquo; &mdash; de vervanging verwijdert 7 van de 8 medische secties.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Timing</span>
+        <span class="finding-value">
+          1e indiening: <code>.638647715735199621</code> &rarr; 14:19:33 CEST<br>
+          2e indiening: <code>.638647720320209269</code> &rarr; 14:27:12 CEST<br>
+          &Delta; = <strong>459 seconden = 7 minuten en 39 seconden</strong>
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value">da96a6cf-DOC0001.XML &middot; b96585bb-METADATA.XML &middot; 1406c377-METADATA.XML &middot; SHA-1 volledig geverifieerd</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value strong">WGBO art. 7:454 &middot; AVG art. 5(1)(a) &middot; AVG art. 15 &middot; AVG art. 18 &middot; WABVPZ art. 15a</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-02</span>
+      <span class="finding-title">Pati&euml;ntidentificatie gewist in 2e DOC0002-metadata &mdash; authorInstitution leeg</span>
+      <span class="badge badge-kritiek">Kritiek</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          1e METADATA DOC0002 (b96585bb): <code>PID-3|spaqq2b2bzc6qdt</code> / <code>PID-5|Grothe^I.^^^^</code> / <code>authorInstitution: Spaarne Gasthuis</code><br>
+          2e METADATA DOC0002 (1406c377): <code>PID-3|</code> LEEG / <code>PID-5|</code> LEEG / <code>authorInstitution:</code> LEEG
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">IHE XDS.b vereist ge&iuml;dentificeerde pati&euml;nt in elke ExtrinsicObject. AVG art. 5(1)(f).</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-03</span>
+      <span class="finding-title">Documenten opgeslagen in andere repositories &mdash; inconsistente XDS-architectuur</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          DOC0001 v1 repositoryUniqueId: <code>9d77d883-96d1-48cd-8e98-190a17305034</code><br>
+          DOC0001 v2 repositoryUniqueId: <code>0ff3cdae-4e3a-47eb-b948-a1d024d31ef5</code><br>
+          DOC0002 v1 repositoryUniqueId: <code>f7759508-c1a7-49fb-828a-b0de0ba9870e</code><br>
+          DOC0002 v2 repositoryUniqueId: <code>f210e956-279c-4449-b6b6-945932e67e10</code>
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">IHE XDS.b &sect;3.42: repositoryUniqueId identificeert de server die het document beheert. Verschillende repository-IDs wijzen op aparte opslagsystemen voor v1 en v2.</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-hoog" style="font-size:.63rem">Middel&ndash;Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-04</span>
+      <span class="finding-title">DOC0002 v2 = 186 bytes &mdash; uitsluitend foutbericht &ldquo;19891213&rdquo;, geen XML-structuur</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Volledige inhoud DOC0002 v2 (df1eb0d9):
+          <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;?xml-stylesheet type='text/xsl' href='STYLE.XSL'?&gt;
+&lt;Error&gt;Er was een probleem bij het genereren van het
+document voor uw bezoek op: 19891213&lt;/Error&gt;</pre>
+          67.550 bytes (volledige contactsamenvatting v1) &rarr; 186 bytes.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WABVPZ art. 15a &middot; WGBO 7:454</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-05</span>
+      <span class="finding-title">Anonieme legalAuthenticator in beide versies (nullFlavor="UNK")</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">Identiek patroon in DOC0001 v1, v2 en DOC0002 v1: alle velden van <code>assignedEntity</code> hebben <code>nullFlavor="UNK"</code>.</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WGBO art. 7:454 &middot; AVG art. 5(1)(a) &middot; HL7 CDA R2 &sect;4.2</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-06</span>
+      <span class="finding-title">Dexamfetamine voorgeschreven door anonieme behandelaar (extension="999999")</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">Author: <code>extension="999999"</code> / <code>name="Externe behandelaar"</code> &mdash; geen BIG-nummer, geen naam. DEXAMFETAMINE (FNA) 5MG CAPSULE &mdash; 7,5 mg 5&times;/dag &mdash; start 04-12-2017 &mdash; ACTIEF (per oktober 2024).</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WGBO art. 7:454 &middot; Opiumwet art. 6</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">B-07</span>
+      <span class="finding-title">SNOMED 361055000 (&ldquo;misbruikt drugs&rdquo;) voor pati&euml;ntbeschrijving &ldquo;sporadisch op feestje&rdquo;</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">DOC0001 v1, sectie Sociale Anamnese (LOINC 29762-2): drugsgebruik Ja &mdash; vrije tekst: <em>&ldquo;sporadisch op feestje&rdquo;</em> &mdash; SNOMED: <code>361055000</code> = &ldquo;misbruikt drugs en/of medicatie&rdquo;.</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WGBO art. 7:454 &middot; AVG art. 5(1)(d)</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTIE C -->
+<section>
+  <h2>Sectie C &mdash; AVG-Inzage 10 januari 2026 (eacc6c17-PDF)</h2>
+  <p style="font-size:.82rem;color:var(--text2);margin-bottom:1.25rem">
+    Analyse van de 57-pagina PDF gegenereerd op <strong>10 jan 2026 15:51:43 CET</strong> door Epic (Foxit renderer) als reactie op het AVG art. 15-inzageverzoek. SHA-256: <code>c3afcb18915c3544e99243c8888b0e344dc2ab80bb2091e8e468641d62ae8e1c</code>.
+  </p>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">C-01</span>
+      <span class="finding-title">Dexamfetamine be&euml;indigd door reumatoloog op 12-05-2025 &mdash; niet door originele voorschrijver</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          <strong>Oktober 2024 (DOC0001 v1):</strong> DEXAMFETAMINE &mdash; status <code>Actief</code>, start 04-12-2017, geen einddatum.<br>
+          <strong>Januari 2026 AVG:</strong> status <code>Be&euml;indigd (Behandeling klaar)</code>, einde <code>12-05-2025</code>.<br>
+          <strong>Be&euml;indiger:</strong> Mw. J.E.L.M. de Ree &mdash; Polikliniek Reumatologie &mdash; telefonisch consult 12-05-2025 08:45 CEST.<br>
+          <strong>Originele voorschrijver:</strong> <code>extension="999999"</code> / Externe behandelaar &mdash; anoniem (zie B-06).<br>
+          <strong>Verband Sectie J:</strong> Dr. J.E.L.M. de Ree verschijnt ook als reumatoloog in Spaarne Azure Blob fotocatalogus (zie B-J09), wat de behandelrelatie bevestigt.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value">eacc6c17-PDF p. 34, 37, 40, 43, 46, 49, 54, 56</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WGBO art. 7:454 &middot; Opiumwet art. 6 &middot; AVG art. 5(1)(d)</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">C-02</span>
+      <span class="finding-title">CCD vermeldt &ldquo;Geen bekende medicatie&rdquo; terwijl be&euml;indigde medicatie in hetzelfde document aanwezig is</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          CCD-sectie &ldquo;Medicatie - t/m 10-01-2026&rdquo; (p. 5): <code>Geen bekende medicatie</code>.<br>
+          Contactsamenvattingen in <em>hetzelfde document</em>:<br>
+          &mdash; DEXAMFETAMINE 5MG: be&euml;indigd 12-05-2025 (p. 34, 37, 40, 43, 46, 49, 54)<br>
+          &mdash; FUSIDINEZUUR FOCUS 20MG/G: be&euml;indigd 02-10-2024 (p. 56)<br>
+          &mdash; CYPROTERON PHARMACHEMIE 50MG: be&euml;indigd 02-10-2024 (p. 56)
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">AVG art. 5(1)(d) &middot; AVG art. 15 &middot; WGBO art. 7:454</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <div class="finding-card">
+    <div class="finding-header">
+      <span class="finding-num">C-03</span>
+      <span class="finding-title">AVG-inzage bevat 57 pagina's &mdash; MedMij-export structureel onvolledig</span>
+      <span class="badge badge-midden">Midden</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Oktober 2024 MedMij-export (DOC0001 v1, 62.156 B): 7 klinische secties.<br>
+          AVG-inzage 10 jan 2026 (57 p., 2,99 MB): aanvullend laboratoriumresultaten 2019&ndash;2024, radiologieverslagen 2023&ndash;2025, zorgteams, polisinformatie.<br>
+          MedMij FHIR-endpoint (gegevensdienstId=51) retourneerde <code>PARTIAL_SUCCESS</code> per 11-01-2026 (zie B-J04) &mdash; structurele onvolledigheid via beide kanalen.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WABVPZ art. 15a &middot; AVG art. 15 &middot; WGBO art. 7:454</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Middel</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTIE J — NIEUW ===================== -->
+<section>
+  <h2 class="section-new">Sectie J &mdash; Nieuwe Bevindingen: Proxyman YAML-Captures 28 juli 2026</h2>
+
+  <p style="font-size:.82rem;color:var(--text2);margin-bottom:1.25rem">
+    Archief <strong>9b409e75-yaml_juli.zip</strong> (28-07-2026, 9,85 MB, SHA-256: <code>a9704c72d04d3fb23be2db354932fd38f0091a8a23d235cfa8c14b70e5336c5a</code>) bevat Proxyman network-captures als OpenAPI 3.0 YAML-specificaties. Hieronder de forensisch relevante bestanden.
+  </p>
+
+  <div class="yaml-sources">
+    <div class="yaml-card">
+      <div class="fn">www.mijnspaarnegasthuis.nl_07-28-2026-19-35-59.yaml</div>
+      <div class="sh">SHA-256: 4f403b6b5e1d0f9010e7197e339b2810ac153675006f90733672cf9310c66d49</div>
+      <div class="desc">Mobile Epic MyChart app v11.8.3 &mdash; DigiD SAML login &mdash; JWT iat 2026-07-22 (6 dgn oud, geldig) &mdash; <code>_Host-</code> cookie prefix aanwezig</div>
+    </div>
+    <div class="yaml-card">
+      <div class="fn">www.mijnspaarnegasthuis.nl_07-28-2026-20-12-10.yaml</div>
+      <div class="sh">SHA-256: 955b666a264eae57a64f2f77900fb8694df7e4c25d0c860048b7989f4811c9ee</div>
+      <div class="desc">Desktop browser sessie &mdash; JWT iat 2026-03-02 (148 dgn oud, geaccepteerd) &mdash; download Gezondheidssamenvatting_02_mrt_2026.zip &amp; VOLLEDIG BLOEDBEELD PDF &mdash; 5&times; ROIDownloadTracker</div>
+    </div>
+    <div class="yaml-card">
+      <div class="fn">www.mijnspaarnegasthuis.nl_07-28-2026-20-18-30.yaml</div>
+      <div class="sh">SHA-256: 85f5d1ed5b56c58a86c78c4d73fe843d0beb429ffab656d903a5e596fe4d647d</div>
+      <div class="desc">Identieke sessie als 20:12 &mdash; JWT jti <code>26fed6cb-18b9-4a76-8f8d-a0a3fb253bfd</code> onveranderd &mdash; zelfde document opnieuw gedownload 6 minuten later</div>
+    </div>
+    <div class="yaml-card">
+      <div class="fn">pgo.uwzorgonline.nl_07-28-2026-19-54-53.yaml</div>
+      <div class="sh">SHA-256: 80229e4438bba4446d52d639a4c29720a333563c857fe8171fa8568a70b8cd24</div>
+      <div class="desc">Quli MedMij PGO portal &mdash; <code>quliRedirect={"name":"medmijredirect","params":{"mfn":"spaarnegasthuis@medmij"}}</code> &mdash; 3 MedMij-aanbieders &mdash; Spaarne Gasthuis PARTIAL_SUCCESS</div>
+    </div>
+    <div class="yaml-card">
+      <div class="fn">mijn.dijklander.nl_07-28-2026-19-38-49.yaml</div>
+      <div class="sh">SHA-256: 47434628d5b51046dffd7cf202a562c0ced83f7317d352a4ad067bdec26d5142</div>
+      <div class="desc">Dijklander Ziekenhuis pati&euml;ntportaal (afzonderlijk ziekenhuis) &mdash; DigiD-authenticatie &mdash; volledig dossier incl. Toestemmingen, Medicatiedetail, Wilsverklaringen</div>
+    </div>
+  </div>
+
+  <!-- SESSIE-OVERZICHT -->
+  <h3 style="font-size:.82rem;margin-bottom:.75rem;color:var(--text2)">Sessie-overzicht 28 juli 2026</h3>
+  <div class="session-grid">
+    <div class="session-card sc-mobile">
+      <div class="sc-label lb-mobile">19:35 &mdash; Mobiel (geldig)</div>
+      <div class="sc-row"><span class="sc-key">App</span><span class="sc-val">Epic MyChart v11.8.3</span></div>
+      <div class="sc-row"><span class="sc-key">JWT iat</span><span class="sc-val">2026-07-22 18:19 UTC</span></div>
+      <div class="sc-row"><span class="sc-key">JWT leeftijd</span><span class="sc-val">6 dagen</span></div>
+      <div class="sc-row"><span class="sc-key">JWT jti</span><span class="sc-val">7f51a819-e404&hellip;</span></div>
+      <div class="sc-row"><span class="sc-key">Cookie prefix</span><span class="sc-val">_Host- (veilig)</span></div>
+      <div class="sc-row"><span class="sc-key">Session ID</span><span class="sc-val">3cnbcchsaavoylth&hellip;</span></div>
+      <div class="sc-row"><span class="sc-key">DigiD</span><span class="sc-val">PKCE S256 aanwezig</span></div>
+    </div>
+    <div class="session-card sc-desktop">
+      <div class="sc-label lb-desktop">20:12 &mdash; Desktop (verouderd!)</div>
+      <div class="sc-row"><span class="sc-key">JWT iat</span><span class="sc-val" style="color:var(--red)">2026-03-02 04:20 UTC</span></div>
+      <div class="sc-row"><span class="sc-key">JWT leeftijd</span><span class="sc-val" style="color:var(--red)">148 dagen</span></div>
+      <div class="sc-row"><span class="sc-key">JWT jti</span><span class="sc-val">26fed6cb-18b9&hellip;</span></div>
+      <div class="sc-row"><span class="sc-key">Cookie prefix</span><span class="sc-val" style="color:var(--red)">GEEN _Host-</span></div>
+      <div class="sc-row"><span class="sc-key">Session ID</span><span class="sc-val">srak25nowopxt4xd&hellip;</span></div>
+      <div class="sc-row"><span class="sc-key">Download</span><span class="sc-val">Gezondheidssamenv. + bloedbeeld</span></div>
+      <div class="sc-row"><span class="sc-key">ROI-cookies</span><span class="sc-val">5&times; WP-24&hellip; = 1</span></div>
+    </div>
+    <div class="session-card sc-pgo">
+      <div class="sc-label lb-pgo">19:54 &mdash; MedMij PGO</div>
+      <div class="sc-row"><span class="sc-key">JSESSIONID</span><span class="sc-val">8125542F3CA6&hellip;</span></div>
+      <div class="sc-row"><span class="sc-key">quliRedirect</span><span class="sc-val">spaarnegasthuis@medmij</span></div>
+      <div class="sc-row"><span class="sc-key">OIDC issuer</span><span class="sc-val">identificatie.uwzorgonline.nl</span></div>
+      <div class="sc-row"><span class="sc-key">Spaarne status</span><span class="sc-val" style="color:var(--red)">PARTIAL_SUCCESS</span></div>
+      <div class="sc-row"><span class="sc-key">Laatste tx</span><span class="sc-val">2026-01-11 09:32 UTC</span></div>
+      <div class="sc-row"><span class="sc-key">FHIR endpoint</span><span class="sc-val">medmij-pgo.vzvz.nl/&hellip;/51</span></div>
+      <div class="sc-row"><span class="sc-key">VWO tracker</span><span class="sc-val">D7F92234&hellip; aanwezig</span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J01 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J01</span>
+      <span class="finding-title">Epic MyChart accepteert JWT-authenticatietoken van 148 dagen oud &mdash; geen vervaltijd gevalideerd</span>
+      <span class="badge badge-kritiek">Kritiek</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Cookie <code>MyChartAccessToken4mychart_prd</code> (RS256 JWT) aanwezig in desktop-sessie:
+          <pre>iat : 1772425230  →  2026-03-02 04:20:30 UTC
+jti : 26fed6cb-18b9-4a76-8f8d-a0a3fb253bfd
+sub : eWnqYgGaGaXWtuaAXZeMFiw3
+alg : RS256
+exp : (afwezig)</pre>
+          Leeftijd op 28-07-2026: <strong>148 dagen</strong>. Epic-server retourneerde HTTP 200 op <code>/MyChart_PRD/Documents/Released/Download</code> met dit token. Geen <code>exp</code>-claim aanwezig. Sessievalidatie geschiedt uitsluitend via <code>MyChartNetAuthenticationTicket4mychart_prd</code> (hex blob), niet via JWT-vervaltijd. JWT is dus functioneel een niet-vervallend credential.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value">SHA-256: <code class="hash">955b666a264eae57a64f2f77900fb8694df7e4c25d0c860048b7989f4811c9ee</code> (20:12-capture)</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value strong">AVG art. 5(1)(f) &middot; NEN 7510 &middot; BIO-maatregelen authenticatie &mdash; ontbreken token-expiry bij toegang tot medische dossiers</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J02 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J02</span>
+      <span class="finding-title">Herhaald dubbel-download-patroon: Gezondheidssamenvatting_02_mrt_2026.zip tweemaal binnen 6 minuten &mdash; identieke parameters</span>
+      <span class="badge badge-kritiek">Kritiek</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Capture 20:12:10 &rarr; download Gezondheidssamenvatting_02_mrt_2026.zip:<br>
+          <pre>releaseId: WP-24w58FmMzYy46gODQfX1P71Q-3D-3D-24AX5V2eq9J92572Vzs00hREQAE9usZM5gYPcDG49YUy8-3D
+docId:     WP-24x-2Fj3f-2BIPgxmsBhy0RXsd-2Fg-3D-3D-24oHHFZq1CT2Rc9OyC9hkfX0FlGFrf0icRqFZ9eXCFa94-3D
+HTTP 200 &mdash; application/zip</pre>
+          Capture 20:18:30 (6 min later) &rarr; <strong>identieke</strong> releaseId/docId, identieke JWT jti, HTTP 200.<br>
+          <strong>Dit spiegelt het oktober 2024-evenement exact</strong> (twee downloads met 7:39 interval). De download-URL's bevatten geen nonce of tijdstempel &mdash; ze verlopen niet.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Context</span>
+        <span class="finding-value">De documentnaam <em>Gezondheidssamenvatting_02_mrt_2026.zip</em> is qua datum consistent met de JWT iat (2026-03-02). De browser had de download-links van de maart-sessie bewaard en herstelde ze 148 dagen later. Epic wijst geen expiry toe aan <code>releaseId</code>-URLs.</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value strong">WGBO art. 7:454 &middot; AVG art. 5(1)(f) &middot; Bewijst systeempatroon: niet-verlopen download-links + herhaalde sessie = gestructureel beveiligingstekort</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J03 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J03</span>
+      <span class="finding-title">5&times; ROIDownloadTracker-cookies bewijzen 5 documenten gedownload op 2 maart 2026</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          In de 20:12 desktop-sessie zijn 5 <code>ROIDownloadTracker4mychart_prd</code>-cookies aanwezig, elk met waarde <code>=1</code> (gedownload):
+          <pre>WP-24WDhOQ4U... = 1   (Work Package 1)
+WP-24VM0...    = 1   (Work Package 2)
+WP-24w58F...   = 1   (Work Package 3 — Gezondheidssamenvatting)
+WP-24iton...   = 1   (Work Package 4)
+WP-24peoP...   = 1   (Work Package 5)</pre>
+          ROIDownloadTracker = Epic &ldquo;Release of Information Download Tracker&rdquo;. Elke cookie bevestigt dat het bijbehorende Work Package (documentbundel) werd gedownload in de sessie van 2 maart 2026.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value">SHA-256: <code class="hash">955b666a264eae57a64f2f77900fb8694df7e4c25d0c860048b7989f4811c9ee</code></span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">WGBO art. 7:454 &middot; AVG art. 15 (logging van dossier-downloads verplicht) &mdash; 5 afzonderlijke documenten/bundels gedownload</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J04 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J04</span>
+      <span class="finding-title">MedMij Spaarne Gasthuis status PARTIAL_SUCCESS &mdash; onvolledige gegevensoverdracht per 11 januari 2026</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          PGO Quli API-response (<code>/c/portal/layout</code>) bevat MedMij-aanbiedersstatus:
+          <pre>providers:
+  - mfn: spaarnegasthuis@medmij
+    name: Stichting Spaarne Gasthuis
+    status: PARTIAL_SUCCESS                  &larr; onvolledig
+    dateOfLastTransaction: 1768123932000     &rarr; 2026-01-11 09:32:12 UTC
+  - mfn: dijklander.ziekenhuis@medmij
+    status: SUCCESS                          &larr; volledig
+    dateOfLastTransaction: 1768665145000     &rarr; 2026-01-17 15:52:25 UTC
+  - mfn: mabmchristiaanse.huisarts.haarlem@medmij
+    status: PARTIAL_SUCCESS                  &larr; onvolledig
+    dateOfLastTransaction: 1768623591000     &rarr; 2026-01-17 04:19:51 UTC</pre>
+          Kritisch: <strong>datum laatste Spaarne-transactie = 2026-01-11 09:32 UTC</strong> = &eacute;&eacute;n dag na het AVG art. 15 inzageverzoek (10-01-2026). Status PARTIAL_SUCCESS toont aan dat niet alle gegevens via FHIR-endpoint <code>medmij-pgo.vzvz.nl/2.0.0/fhir/stu3/51</code> werden overgedragen.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value">SHA-256: <code class="hash">80229e4438bba4446d52d639a4c29720a333563c857fe8171fa8568a70b8cd24</code> (pgo.uwzorgonline.nl)</span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value strong">WABVPZ art. 15a &middot; AVG art. 20 (gegevensoverdraagbaarheid) &middot; MedMij stelsel-eisen &mdash; Spaarne Gasthuis levert structureel onvolledige FHIR-export via MedMij; dit is consistent met bevinding C-03</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J05 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J05</span>
+      <span class="finding-title">OpenID Connect authorization code plaintext vastgelegd in YAML-capture &mdash; MedMij OIDC-sessie gecompromitteerd</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          OIDC callback (<code>/c/portal/login/openidconnect</code>) vastgelegd met alle parameters:
+          <pre>code:          C7BEE124BC81728FCC8957ECC86D59148C593C59095537469F73B8DFDEB40CCF-1
+state:         IHYAb6QS65jUj4_h4U_NqTyoIUj54nEdDbtROoGAXU8
+session_state: HLQj70DYCVe_iNaU0VmeV8jxxB8ecWhUYEZRB-uTQJ0.CDA9311E4930BA88C27D5EBA9103D671
+iss:           https://identificatie.uwzorgonline.nl/</pre>
+          De authorization code is single-use en kort-levend; dit specifieke token is reeds ingewisseld. Echter: het feit dat de code in de Proxyman YAML staat toont dat iedereen met toegang tot dit archief de code had kunnen onderscheppen <em>v&oacute;&oacute;r</em> inwisseling. In combinatie met <code>quliRedirect={"name":"medmijredirect","params":{"mfn":"spaarnegasthuis@medmij"}}</code> geeft dit volledige context van de MedMij-sessie.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value">SHA-256: <code class="hash">80229e4438bba4446d52d639a4c29720a333563c857fe8171fa8568a70b8cd24</code></span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">AVG art. 5(1)(f) &middot; AVG art. 9 (bijzondere categorie gezondheidsdata &mdash; OIDC-scope <code>openid WMS profile</code> geeft toegang tot gezondheidsrecords)</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Hoog</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J06 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J06</span>
+      <span class="finding-title">Desktop Epic-sessie ontbeert <code>_Host-</code> cookie-prefix &mdash; verlaagde cookie-binding t.o.v. mobile</span>
+      <span class="badge badge-hoog">Hoog</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Mobile app (19:35): <code>_Host-MyChart_Session=3cnbcchsaavoylthgtbwvv1d</code><br>
+          Desktop browser (20:12/20:18): <code>MyChart_Session=srak25nowopxt4xdnomuurcg</code> (zonder <code>_Host-</code> prefix)<br><br>
+          Het <code>_Host-</code> prefix (RFC 6265bis §4.1.3) vereist: Secure-flag verplicht, geen Domain-attribuut, Path=/. Zonder dit prefix kan de sessie-cookie worden onderschept of overschreven door subdomein-injecties. Mobile biedt sterkere sessie-binding dan desktop.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">AVG art. 5(1)(f) &middot; NEN 7510 &sect;9.4 (sessiebeheer medische systemen)</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-hoog" style="font-size:.63rem">Middel&ndash;Hoog</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J07 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J07</span>
+      <span class="finding-title">VWO gedragstracker aanwezig op MedMij PGO-portal en www.spaarnegasthuis.nl</span>
+      <span class="badge badge-midden">Midden</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Op <strong>pgo.uwzorgonline.nl</strong>:<br>
+          <code>_vwo_uuid_v2=D7F92234C1BD6756ACB5716E56B29A92F|cd9d17a55df5b6dff09cd1be3b0a76b9</code><br><br>
+          Op <strong>www.spaarnegasthuis.nl</strong> (tegelijk vastgelegd):<br>
+          <code>_vwo_uuid_v2=D0546DFA51DFBECE1F87544234D1ACF7C|6424a04dec56f48bb87a994b46b06787</code><br>
+          <code>_vwo_ds</code>, <code>_vwo</code>, <code>_vis_opt_s</code>, <code>_vwo_uuid</code> (meerdere VWO-cookies)<br><br>
+          Visual Website Optimizer (VWO) = A/B-test- en gebruikersgedragplatform. Op de Spaarne-website staat <code>tracking-cookies=no</code> (gebruiker heeft tracking afgewezen), maar VWO-cookies worden toch gestuurd.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">AVG art. 5(1)(a) (rechtmatigheid) &middot; Cookiewet (Telecomwet art. 11.7a) &mdash; tracking-cookie actief na afwijzing door gebruiker; aanwezigheid in medische PGO-context vereist expliciete toestemmingsgrondslag</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Middel</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J08 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J08</span>
+      <span class="finding-title">Spaarne Gasthuis Docker-containernaam blootgesteld via sessie-cookie</span>
+      <span class="badge badge-midden">Midden</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          Cookie op www.spaarnegasthuis.nl: <code>www.spaarnegasthuis.nl=www.spaarnegasthuis.nl_docker-2-5025</code><br>
+          Dit is een load-balancer sticky-session cookie die de interne Docker container identificeert (<code>docker-2-5025</code>). Interne infrastructuurnaam is zichtbaar voor de cli&euml;nt &mdash; facilitates targeted attacks via container-targeting.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">AVG art. 5(1)(f) &mdash; onnodige blootstelling van interne systeeminformatie bij verwerking van gezondheidsdata</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-ok">Middel</span></span></div>
+    </div>
+  </div>
+
+  <!-- BEVINDING B-J09 -->
+  <div class="finding-card fc-new">
+    <div class="finding-header fh-new">
+      <span class="finding-num">B-J09</span>
+      <span class="finding-title">Dr. J.E.L.M. de Ree (reumatoloog) bevestigd via Azure Blob Storage &mdash; behandelrelatie gecorroboreerd door netwerkcapture</span>
+      <span class="badge badge-info">Info</span>
+    </div>
+    <div class="finding-body">
+      <div class="finding-row">
+        <span class="finding-label">Technisch</span>
+        <span class="finding-value">
+          <code>spaarneproduction.blob.core.windows.net</code> (Azure Blob) serveert op 28-07-2026 onder meer:<br>
+          <code>mw-juliette-de-ree-reumatoloog_300x300.jpg</code> (HTTP 200)<br>
+          Overige geladen foto's: Dr. Dennis Kox (KNO), Dr. Steven van Lelyveld (internist/infectioloog), Jan-Hylke Kingma (apotheker).<br><br>
+          <strong>Forensische koppeling:</strong> Dr. J.E.L.M. de Ree Reumatologie is dezelfde behandelaar die in bevinding C-01 verschijnt als degene die op 12-05-2025 de dexamfetamine heeft be&euml;indigd. De Azure Blob-verzoeken bevestigen onafhankelijk de behandelrelatie op 28-07-2026.
+        </span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Bron</span>
+        <span class="finding-value"><code>spaarneproduction.blob.core.windows.net</code> in <code>outlook.office365.com_07-28-2026-20-17-05.folder</code></span>
+      </div>
+      <div class="finding-row">
+        <span class="finding-label">Juridisch</span>
+        <span class="finding-value">Corroborerend bewijs voor C-01 &mdash; geen zelfstandige juridische grondslag; behandelaarsrelatie bevestigd door onafhankelijke bron</span>
+      </div>
+      <div class="finding-row"><span class="finding-label">Bewijswaarde</span><span class="finding-value"><span class="badge badge-info">Laag&ndash;Middel (corroborerend)</span></span></div>
+    </div>
+  </div>
+
+</section>
+
+<!-- OVERZICHT ALLE BEVINDINGEN -->
+<section>
+  <h2>Totaaloverzicht Bevindingen (v4.0 &mdash; 19 bevindingen)</h2>
+  <div class="evidence-table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Bevinding</th><th>Ernst</th><th>Juridische grondslag</th><th>Bewijs</th></tr></thead>
+      <tbody>
+        <tr class="sr-kritiek"><td>B-01</td><td>HL7 CDA RPLC-vervanging v1&rarr;v2 binnen 7 min 39 sec</td><td><span class="badge badge-kritiek">Kritiek</span></td><td>WGBO 7:454 &middot; AVG 5(1)(a) &middot; 15 &middot; 18 &middot; WABVPZ 15a</td><td>Hoog</td></tr>
+        <tr class="sr-kritiek"><td>B-02</td><td>PID-velden + authorInstitution gewist in 2e indiening</td><td><span class="badge badge-kritiek">Kritiek</span></td><td>IHE XDS.b &middot; AVG 5(1)(f)</td><td>Hoog</td></tr>
+        <tr class="sr-hoog"><td>B-03</td><td>Vervangende documenten in andere repositories opgeslagen</td><td><span class="badge badge-hoog">Hoog</span></td><td>IHE XDS.b &sect;3.42</td><td>Middel&ndash;Hoog</td></tr>
+        <tr class="sr-hoog"><td>B-04</td><td>DOC0002 v2 = 186 bytes foutbericht &mdash; geen geldig CDA</td><td><span class="badge badge-hoog">Hoog</span></td><td>WABVPZ 15a &middot; WGBO 7:454</td><td>Hoog</td></tr>
+        <tr class="sr-hoog"><td>B-05</td><td>Anonieme legalAuthenticator in alle versies (nullFlavor="UNK")</td><td><span class="badge badge-hoog">Hoog</span></td><td>WGBO 7:454 &middot; AVG 5(1)(a) &middot; HL7 CDA R2 &sect;4.2</td><td>Hoog</td></tr>
+        <tr class="sr-hoog"><td>B-06</td><td>Dexamfetamine voorgeschreven door anonieme behandelaar</td><td><span class="badge badge-hoog">Hoog</span></td><td>WGBO 7:454 &middot; Opiumwet art. 6</td><td>Hoog</td></tr>
+        <tr class="sr-hoog"><td>B-07</td><td>SNOMED 361055000 &mdash; onjuiste pathologische codering</td><td><span class="badge badge-hoog">Hoog</span></td><td>WGBO 7:454 &middot; AVG 5(1)(d)</td><td>Hoog</td></tr>
+        <tr class="sr-hoog"><td>C-01</td><td>Dexamfetamine be&euml;indigd 12-05-2025 door reumatoloog (De Ree) &mdash; niet de originele voorschrijver</td><td><span class="badge badge-hoog">Hoog</span></td><td>WGBO 7:454 &middot; Opiumwet 6 &middot; AVG 5(1)(d)</td><td>Hoog</td></tr>
+        <tr class="sr-hoog"><td>C-02</td><td>CCD &ldquo;Geen bekende medicatie&rdquo; &mdash; interne inconsistentie in AVG-inzage</td><td><span class="badge badge-hoog">Hoog</span></td><td>AVG 5(1)(d) &middot; 15 &middot; WGBO 7:454</td><td>Hoog</td></tr>
+        <tr class="sr-middel"><td>C-03</td><td>MedMij-export structureel onvolledig t.o.v. volledig AVG-dossier</td><td><span class="badge badge-midden">Midden</span></td><td>WABVPZ 15a &middot; AVG 15</td><td>Middel</td></tr>
+        <!-- NIEUW SECTIE J -->
+        <tr class="sr-kritiek sr-new"><td>B-J01</td><td>Epic MyChart accepteert JWT 148 dagen oud &mdash; geen exp-validatie</td><td><span class="badge badge-kritiek">Kritiek</span></td><td>AVG 5(1)(f) &middot; NEN 7510</td><td>Hoog</td></tr>
+        <tr class="sr-kritiek sr-new"><td>B-J02</td><td>Herhaald dubbel-download-patroon &mdash; identieke parameters, 6 min interval</td><td><span class="badge badge-kritiek">Kritiek</span></td><td>WGBO 7:454 &middot; AVG 5(1)(f)</td><td>Hoog</td></tr>
+        <tr class="sr-hoog sr-new"><td>B-J03</td><td>5&times; ROIDownloadTracker = 5 documenten gedownload 2 maart 2026</td><td><span class="badge badge-hoog">Hoog</span></td><td>WGBO 7:454 &middot; AVG 15</td><td>Hoog</td></tr>
+        <tr class="sr-hoog sr-new"><td>B-J04</td><td>MedMij Spaarne Gasthuis PARTIAL_SUCCESS per 11-01-2026 (dag na AVG-verzoek)</td><td><span class="badge badge-hoog">Hoog</span></td><td>WABVPZ 15a &middot; AVG 20</td><td>Hoog</td></tr>
+        <tr class="sr-hoog sr-new"><td>B-J05</td><td>OIDC authorization code plaintext in Proxyman capture &mdash; MedMij-sessie</td><td><span class="badge badge-hoog">Hoog</span></td><td>AVG 5(1)(f) &middot; AVG 9</td><td>Hoog</td></tr>
+        <tr class="sr-hoog sr-new"><td>B-J06</td><td>Desktop Epic-sessie zonder <code>_Host-</code> cookie-prefix</td><td><span class="badge badge-hoog">Hoog</span></td><td>AVG 5(1)(f) &middot; NEN 7510</td><td>Middel&ndash;Hoog</td></tr>
+        <tr class="sr-middel sr-new"><td>B-J07</td><td>VWO gedragstracker actief op PGO en Spaarne-website; tracking=no genegeerd</td><td><span class="badge badge-midden">Midden</span></td><td>AVG 5(1)(a) &middot; Cookiewet</td><td>Middel</td></tr>
+        <tr class="sr-middel sr-new"><td>B-J08</td><td>Docker containernaam blootgesteld in sessie-cookie</td><td><span class="badge badge-midden">Midden</span></td><td>AVG 5(1)(f)</td><td>Middel</td></tr>
+        <tr class="sr-info sr-new"><td>B-J09</td><td>Dr. De Ree (reumatoloog) bevestigd via Azure Blob &mdash; corroborerend bewijs voor C-01</td><td><span class="badge badge-info">Info</span></td><td>Corroborerend</td><td>Laag&ndash;Middel</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.78rem;color:var(--text3);margin-top:.75rem">
+    <span class="badge badge-ok" style="font-size:.65rem">Nieuw</span> = bevindingen B-J01 t/m B-J09 toegevoegd in v4.0 op basis van Proxyman YAML-analyse 28 juli 2026. Totaal: <strong>4&times; Kritiek &middot; 9&times; Hoog &middot; 3&times; Midden &middot; 1&times; Info (19 bevindingen)</strong>.
+  </p>
+</section>
+
+<!-- AANBEVELINGEN -->
+<section>
+  <h2>Aanbevelingen voor Juridische Procedure (bijgewerkt v4.0)</h2>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem">
+    <div style="margin-bottom:1.25rem">
+      <h3 style="font-size:.88rem;margin-bottom:.4rem">Ingebrekestelling Spaarne Gasthuis / FG &mdash; prioritair</h3>
+      <ol style="margin:0;padding-left:1.25rem;font-size:.82rem;color:var(--text2);line-height:1.8">
+        <li>Wie heeft de 2e XDS SubmissionSet ingediend op 17-10-2024 14:27:12 CEST?</li>
+        <li>Volledige Epic audit log 17-10-2024 10:00&ndash;16:00 CEST</li>
+        <li>Op welke grondslag is de vervanging van DOC0001 v1 door v2 uitgevoerd?</li>
+        <li>Identificatie van de legalAuthenticator achter <code>nullFlavor="UNK"</code></li>
+        <li>Waarom zijn de PID-velden en authorInstitution leeg in de 2e DOC0002-metadata?</li>
+        <li>Identificatie van de voorschrijver dexamfetamine (<code>extension="999999"</code>)</li>
+        <li><strong>Nieuw:</strong> Waarom retourneert <code>medmij-pgo.vzvz.nl/2.0.0/fhir/stu3/51</code> (Spaarne FHIR-endpoint) PARTIAL_SUCCESS per 11-01-2026?</li>
+        <li><strong>Nieuw:</strong> Epic-sessietoken <code>MyChartAccessToken4mychart_prd</code> bevat geen <code>exp</code>-claim; op welke grondslag wordt de toegangsduur gecontroleerd?</li>
+      </ol>
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <h3 style="font-size:.88rem;margin-bottom:.4rem">Klacht Autoriteit Persoonsgegevens</h3>
+      <p style="font-size:.82rem;color:var(--text2);margin:0">Grondslag: AVG art. 15, 5(1)(a), 5(1)(d), 5(1)(f), 18, 20, 77. Via ap.nl/klacht.</p>
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <h3 style="font-size:.88rem;margin-bottom:.4rem">Klacht IGJ + Tuchtrecht</h3>
+      <p style="font-size:.82rem;color:var(--text2);margin:0">Grondslag: Wkkgz art. 11, WGBO art. 7:454, Wet BIG (anonieme voorschrijver Opiumwet Lijst I-middel).</p>
+    </div>
+    <div>
+      <h3 style="font-size:.88rem;margin-bottom:.4rem">Melding CIBG / MedMij Stelsel (nieuw in v4.0)</h3>
+      <p style="font-size:.82rem;color:var(--text2);margin:0">PARTIAL_SUCCESS op MedMij FHIR-endpoint (gegevensdienstId=51) per 11-01-2026 te melden bij VZVZ/MedMij stelselhouder. Spaarne Gasthuis MedMij-certificering vereist volledige gegevensoverdracht.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Rapport v4.0 &mdash; 28 juli 2026. <strong>19 bevindingen: 4&times; Kritiek &middot; 9&times; Hoog &middot; 3&times; Midden &middot; 1&times; Info</strong>. Alle SHA-1-hashes van XDS-documenten geverifieerd. Alle bronbestanden behandeld als read-only. YAML-archief SHA-256: a9704c72d04d3fb23be2db354932fd38f0091a8a23d235cfa8c14b70e5336c5a. Dit rapport is bewijsmateriaal &mdash; niet ter vervanging van juridisch advies.
+</footer>
+
+</div>
