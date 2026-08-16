@@ -1347,10 +1347,10 @@
     },
     "forensic/evidence_index.json": {
       "file": "forensic/evidence_index.json",
-      "hash": "f7b9eaf4",
+      "hash": "b98f5380",
       "size_kb": 48.8,
-      "modified": "2026-08-14T06:17",
-      "analyzed": "2026-08-15",
+      "modified": "2026-08-15T05:28",
+      "analyzed": "2026-08-16",
       "nb_refs": [
         "36",
         "108",
@@ -1438,10 +1438,10 @@
     },
     "forensic/SHA256_MANIFEST.json": {
       "file": "forensic/SHA256_MANIFEST.json",
-      "hash": "33369764",
+      "hash": "4cadc2eb",
       "size_kb": 3.9,
-      "modified": "2026-08-15T05:28",
-      "analyzed": "2026-08-15",
+      "modified": "2026-08-16T05:31",
+      "analyzed": "2026-08-16",
       "nb_refs": [],
       "legal_refs": [],
       "actors": [],
@@ -1450,7 +1450,7 @@
       "hypotheses": [],
       "bewijs_weight": "PENDING",
       "spoor": "ONBEKEND",
-      "summary": "{   \"generated\": \"2026-08-15T05:28:50.487895Z\",   \"tool\": \"forensic/hash_manifest.py\",   \"dossier\": \"Grothe BSN 215672185\",   \"total_files\": 20,   \"files\": {     \"forensic/SHA256_MANIFEST.json\": {    "
+      "summary": "{   \"generated\": \"2026-08-16T05:31:42.882510Z\",   \"tool\": \"forensic/hash_manifest.py\",   \"dossier\": \"Grothe BSN 215672185\",   \"total_files\": 20,   \"files\": {     \"forensic/SHA256_MANIFEST.json\": {    "
     },
     "forensic/deep_extractor.py": {
       "file": "forensic/deep_extractor.py",
@@ -1595,5 +1595,5 @@
     "{fu}\")",
     "{todo}\")"
   ],
-  "last_updated": "2026-08-15"
+  "last_updated": "2026-08-16"
 }
