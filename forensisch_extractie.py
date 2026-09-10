@@ -37,6 +37,22 @@ Forensische waarborgen:
 
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# BESCHERM STDLIB TEGEN LOKALE SHADOWING
+# Als de gebruiker een bestand zoals `string.py`, `email.py`, `csv.py` naast dit
+# script of in de huidige map heeft staan, zou dat Python's eigen modules
+# schaduwen en elke import breken. Dit MOET vooraan staan, vóór alle andere
+# imports, en gebruikt alleen built-in modules (sys/os hebben geen sys.path
+# nodig).
+# --------------------------------------------------------------------------- #
+import sys as _sys
+import os as _os
+
+_hier = _os.path.abspath(_os.path.dirname(__file__) if "__file__" in dir() else ".")
+_cwd = _os.path.abspath(".")
+_sys.path[:] = [p for p in _sys.path if p and _os.path.abspath(p) not in (_hier, _cwd)]
+del _sys, _os, _hier, _cwd
+
 import base64
 import binascii
 import configparser
@@ -64,7 +80,7 @@ import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, List, Tuple
 
 try:
     import bz2
@@ -390,7 +406,7 @@ def xml_naar_dict(element: ET.Element) -> Any:
 # --------------------------------------------------------------------------- #
 
 
-HandlerResult = tuple[list[Uitvoer], list[str]]
+HandlerResult = Tuple[List[Uitvoer], List[str]]
 Handler = Callable[[Path, Path, int], HandlerResult]
 
 
